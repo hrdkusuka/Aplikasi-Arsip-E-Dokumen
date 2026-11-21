@@ -29,9 +29,15 @@ import {
   ArrowRight,
   ArrowDown,
   FileSpreadsheet,
+  Code,
+  Rocket,
+  Table2,
 } from 'lucide-react';
 import { AppState } from '../types';
 import { generateEBookPDF } from '../utils/generateEBookPdf';
+import { APPS_SCRIPT_SHEET_BLUEPRINT } from '../services/appsScriptStorage';
+import codeGsRaw from '../../gas/Code.gs?raw';
+import vercelJsonRaw from '../../vercel.json?raw';
 
 interface EBookViewProps {
   state: AppState;
@@ -60,11 +66,24 @@ export const EBookView: React.FC<EBookViewProps> = ({ state, onNotify }) => {
     }
   };
 
-  const handleCopyCode = (codeText: string, id: string) => {
+  const handleCopyCode = (codeText: string, id: string, label = 'Kode') => {
     navigator.clipboard.writeText(codeText);
     setCopiedSql(id);
-    onNotify('Kode SQL berhasil disalin ke clipboard.');
+    onNotify(`${label} berhasil disalin ke clipboard.`);
     setTimeout(() => setCopiedSql(null), 2500);
+  };
+
+  const handleDownloadCodeGs = () => {
+    const blob = new Blob([codeGsRaw], { type: 'text/javascript;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Code.gs';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    onNotify('Berkas Code.gs berhasil diunduh.');
   };
 
   const sqlTimbangan = `-- SKEMA DATABASE POSTGRESQL / SUPABASE
@@ -949,7 +968,7 @@ CREATE TABLE docs_slo (
               </div>
 
               <div className="rounded-lg border border-emerald-300 bg-white p-3 text-center">
-                <div className="font-bold text-emerald-900">Debounce 1.5s</div>
+                <div className="font-bold text-emerald-900">Debounce 2.0s</div>
                 <div className="text-[11px] text-slate-600 mt-1">Mencegah redundansi &amp; mengonsolidasi batch data</div>
               </div>
 
@@ -958,27 +977,21 @@ CREATE TABLE docs_slo (
               </div>
 
               <div className="rounded-lg border border-emerald-300 bg-white p-3 text-center">
-                <div className="font-bold text-emerald-900">Google Sheets API</div>
-                <div className="text-[11px] text-slate-600 mt-1">Multi-Tab Batch Update seluruh lembar kerja via OAuth Token</div>
+                <div className="font-bold text-emerald-900">Apps Script Web App</div>
+                <div className="text-[11px] text-slate-600 mt-1">Sinkronisasi 15 Tab Google Sheets + Snapshot <code>_AppState_DB</code></div>
               </div>
             </div>
 
             <div className="mt-4 rounded-lg border border-emerald-200 bg-white p-3.5 text-xs text-slate-700">
               <div className="font-bold text-emerald-900 mb-1">
-                Daftar Tab Lembar Kerja di Google Sheets (11 Tab Modul Arsip Terintegrasi):
+                Daftar Tab Lembar Kerja di Google Sheets (15 Tab Terstruktur + 1 Tab Sistem):
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-2 font-mono text-[11px] text-slate-700">
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">1. Ringkasan &amp; Dashboard</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">2. Arsip Dokumen (Fisik)</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">3. Bukti Bayar PBB (E-NOP)</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">4. Arsip E-SPPT Pajak</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">5. Sertifikat Merk HAKI</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">6. Sertifikat K3 / SMK3</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">7. E-Sertifikat Tanah</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">8. E-IMB &amp; PBG Bangunan</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">9. Sertifikat SLO Genset/Listrik</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">10. Uji Timbangan &amp; Tera</div>
-                <div className="bg-slate-50 p-1.5 rounded border border-slate-200">11. Master Provinsi, Kota &amp; Status</div>
+                {APPS_SCRIPT_SHEET_BLUEPRINT.map((sheet) => (
+                  <div key={sheet.no} className="bg-slate-50 p-1.5 rounded border border-slate-200">
+                    {sheet.no}. {sheet.tabName}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1056,12 +1069,12 @@ CREATE TABLE docs_slo (
               </div>
 
               <div className="rounded-lg border border-slate-700 bg-slate-800/80 p-3.5">
-                <div className="font-bold text-amber-400">3. Cloud Integrations</div>
+                <div className="font-bold text-amber-400">3. Cloud &amp; Deploy</div>
                 <ul className="mt-2 space-y-1 text-[11px] text-slate-300">
-                  <li>• Google Cloud Run (Container)</li>
-                  <li>• Google Workspace OAuth 2.0</li>
-                  <li>• Google Sheets &amp; Drive Realtime Sync</li>
-                  <li>• Project: nimble-city-wwpgt</li>
+                  <li>• Google Apps Script Web App</li>
+                  <li>• Google Sheets 15-Tab Auto-Sync</li>
+                  <li>• GitHub Repository Integration</li>
+                  <li>• Vercel SPA Production Hosting</li>
                 </ul>
               </div>
 
@@ -1075,6 +1088,167 @@ CREATE TABLE docs_slo (
                 </ul>
               </div>
             </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 9,
+      title: 'Bab 9: Arsip Code.gs, Apps Script & Deploy Vercel',
+      subtitle: 'Panduan Penyimpanan Google Sheets 15 Tab, GitHub & Vercel',
+      icon: Code,
+      content: (
+        <div className="space-y-6">
+          <div className="border-b border-slate-200 pb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+              Bab 9 · Dokumentasi Teknis &amp; Arsip Infrastruktur (Khusus Admin IT / Super Admin)
+            </span>
+            <h2 className="mt-1 text-xl font-bold text-slate-900">
+              Penyimpanan Google Sheets (Apps Script Code.gs) &amp; Deploy GitHub / Vercel
+            </h2>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+              Bab ini menyimpan arsip lengkap skrip <code>Code.gs</code>, struktur 15 tab database Google Sheets, langkah deploy Web App Google Apps Script, serta panduan publikasi ke GitHub dan Vercel. Pengaturan operasional koneksinya tersedia khusus bagi <strong>Super Admin (Level 1)</strong> di menu <strong>Setting → Apps Script &amp; Deploy</strong>.
+            </p>
+          </div>
+
+          {/* 1. Panduan 5 Langkah Deploy Google Apps Script */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Layers className="h-4 w-4 text-blue-700" />
+              <span>1. Langkah Deploy Database Google Sheets via Apps Script</span>
+            </div>
+            <ol className="mt-3 space-y-2.5 text-xs text-slate-700 list-decimal pl-5 leading-relaxed">
+              <li>
+                Buat file <strong>Google Spreadsheet</strong> baru (misalnya: <em>Database Arsip Dokumen {companyName}</em>), lalu buka menu <strong>Ekstensi (Extensions) → Apps Script</strong>.
+              </li>
+              <li>
+                Hapus isi bawaan pada file <code>Code.gs</code>, lalu tempel (<em>paste</em>) seluruh kode <code>Code.gs</code> dari bagian arsip kode di bawah ini dan simpan (<code>Ctrl+S</code>).
+              </li>
+              <li>
+                Pilih fungsi <code>setupSpreadsheetTabs</code> pada toolbar atas editor Apps Script, klik <strong>Run</strong>, dan berikan izin akses akun Google Anda agar <strong>15 tab terstruktur + 1 tab sistem tersembunyi (<code>_AppState_DB</code>)</strong> otomatis terbentuk.
+              </li>
+              <li>
+                Klik <strong>Deploy (Terapkan) → New deployment (Deployment baru)</strong> → pilih tipe <strong>Web app</strong> dengan pengaturan:
+                <div className="mt-1.5 rounded-lg border border-blue-200 bg-white p-2.5 font-mono text-[11px] text-slate-800">
+                  • Execute as: <strong>Me (email akun Google Anda)</strong>
+                  <br />
+                  • Who has access: <strong>Anyone (Siapa saja)</strong>
+                </div>
+              </li>
+              <li>
+                Salin <strong>Web app URL</strong> yang berakhiran <code>/exec</code>, lalu tempelkan di menu <strong>Setting → Apps Script &amp; Deploy</strong> (khusus Super Admin) atau simpan sebagai Environment Variable <code>VITE_GAS_WEBAPP_URL</code> di Vercel.
+              </li>
+            </ol>
+          </div>
+
+          {/* 2. Blueprint 15 Tab Google Sheets */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Table2 className="h-4 w-4 text-emerald-700" />
+              <span>2. Struktur 15 Tab Google Sheets Otomatis</span>
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] text-slate-600">
+                    <th className="px-3 py-2 font-semibold w-10">No</th>
+                    <th className="px-3 py-2 font-semibold">Nama Tab Spreadsheet</th>
+                    <th className="px-3 py-2 font-semibold">Fungsi Modul</th>
+                    <th className="px-3 py-2 font-semibold text-right">Kolom</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {APPS_SCRIPT_SHEET_BLUEPRINT.map((sheet) => (
+                    <tr key={sheet.no} className="hover:bg-slate-50/70">
+                      <td className="px-3 py-2 font-mono text-slate-500">{sheet.no}</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900">{sheet.tabName}</td>
+                      <td className="px-3 py-2 text-slate-600">{sheet.moduleTitle}</td>
+                      <td className="px-3 py-2 text-right font-mono text-slate-500">
+                        {sheet.columns.length}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 3. Panduan Integrasi GitHub & Vercel */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Rocket className="h-4 w-4 text-blue-700" />
+              <span>3. Panduan Integrasi GitHub &amp; Deploy ke Vercel</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2">
+                <div className="font-bold text-slate-900">A. Simpan Proyek ke GitHub</div>
+                <p className="text-slate-600 leading-relaxed">
+                  Push seluruh kode proyek ke repositori GitHub Anda (Private atau Public). File <code>vercel.json</code> sudah tersedia otomatis untuk SPA routing.
+                </p>
+                <pre className="overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] text-slate-100 leading-relaxed">
+{vercelJsonRaw.trim()}
+                </pre>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2">
+                <div className="font-bold text-slate-900">B. Environment Variables di Vercel</div>
+                <p className="text-slate-600 leading-relaxed">
+                  Import repositori GitHub di <strong>vercel.com</strong> (Framework: <strong>Vite</strong>, Build: <code>npm run build</code>, Output: <code>dist</code>), lalu isi variabel berikut di <strong>Project Settings → Environment Variables</strong>:
+                </p>
+                <div className="rounded-lg border border-blue-200 bg-white p-3 font-mono text-[11px] text-slate-800 space-y-1.5">
+                  <div>
+                    <strong className="text-blue-800">VITE_GAS_WEBAPP_URL</strong>
+                    <div className="text-slate-500">https://script.google.com/macros/s/.../exec</div>
+                  </div>
+                  <div className="pt-1 border-t border-slate-100">
+                    <strong className="text-blue-800">VITE_GAS_API_TOKEN</strong>{' '}
+                    <span className="text-slate-400">(opsional)</span>
+                    <div className="text-slate-500">Samakan dengan API_TOKEN di Code.gs jika dipakai</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Arsip Kode Sumber Code.gs Lengkap */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950 text-slate-100 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Code className="h-4 w-4 text-emerald-400" />
+                <span className="font-mono text-xs font-bold text-white">
+                  Arsip Kode Sumber: gas/Code.gs ({codeGsRaw.split('\n').length} baris)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(codeGsRaw, 'gas-code-gs', 'Kode Code.gs')}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-colors cursor-pointer"
+                >
+                  {copiedSql === 'gas-code-gs' ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Tersalin</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>Salin Code.gs</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadCodeGs}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Unduh .gs</span>
+                </button>
+              </div>
+            </div>
+            <pre className="max-h-[420px] overflow-auto p-4 font-mono text-[11px] leading-relaxed text-emerald-200/95">
+              <code>{codeGsRaw}</code>
+            </pre>
           </div>
         </div>
       ),

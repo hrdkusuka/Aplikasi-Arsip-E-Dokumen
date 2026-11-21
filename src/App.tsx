@@ -456,6 +456,13 @@ export default function App() {
     );
   }, [currentUser]);
 
+  // Pastikan menu teknis Apps Script & Deploy hanya dapat diakses oleh Super Admin (Level 1)
+  useEffect(() => {
+    if (activeView === 'setting-apps-script' && !isSuperAdmin) {
+      setActiveView('dashboard');
+    }
+  }, [activeView, isSuperAdmin]);
+
   // --- Master Data Handlers ---
   const handleSaveLocation = (loc: MasterArchiveLocation, isEdit: boolean) => {
     setState((prev) => ({
@@ -1548,26 +1555,29 @@ export default function App() {
                 Setting Company
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveView('setting-apps-script');
-                  setMobileMenuOpen(false);
-                }}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 font-medium transition-colors ${
-                  activeView === 'setting-apps-script'
-                    ? 'bg-blue-700 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Code className="h-3.5 w-3.5 text-emerald-400" />
-                  Apps Script &amp; Deploy
-                </span>
-                <span className="font-mono text-[10px] opacity-80">
-                  {isValidAppsScriptUrl(gasConfig.webAppUrl) ? 'ON' : 'GAS'}
-                </span>
-              </button>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveView('setting-apps-script');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 font-medium transition-colors ${
+                    activeView === 'setting-apps-script'
+                      ? 'bg-blue-700 text-white'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+                  title="Khusus Super Admin (Level 1): Koneksi Google Sheets Apps Script & Deploy"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <Code className="h-3.5 w-3.5 text-emerald-400" />
+                    Apps Script &amp; Deploy
+                  </span>
+                  <span className="font-mono text-[10px] opacity-80">
+                    {isValidAppsScriptUrl(gasConfig.webAppUrl) ? 'ON' : 'GAS'}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1870,7 +1880,7 @@ export default function App() {
             />
           )}
 
-          {activeView === 'setting-apps-script' && (
+          {activeView === 'setting-apps-script' && isSuperAdmin && (
             <AppsScriptStorageView
               state={state}
               gasConfig={gasConfig}
