@@ -22,9 +22,6 @@ import {
   Inbox,
   CalendarClock,
   KeyRound,
-  DownloadCloud,
-  UploadCloud,
-  Laptop,
 } from 'lucide-react';
 import {
   AppState,
@@ -55,7 +52,6 @@ interface SettingViewProps {
   onResetNonSuperAdminPasswords?: () => void;
   onResetSingleUserPassword?: (userId: string) => void;
   onClearSampleUsers?: () => void;
-  onImportFullState?: (newState: AppState) => void;
   onNotify?: (msg: string) => void;
 }
 
@@ -85,7 +81,6 @@ export const SettingView: React.FC<SettingViewProps> = ({
   onResetNonSuperAdminPasswords,
   onResetSingleUserPassword,
   onClearSampleUsers,
-  onImportFullState,
   onNotify,
 }) => {
   const [confirmClearData, setConfirmClearData] = useState(false);
@@ -102,61 +97,6 @@ export const SettingView: React.FC<SettingViewProps> = ({
         u.username !== 'admin'
     );
   }, [state.users]);
-
-  const handleExportJson = () => {
-    try {
-      const dataStr =
-        'data:text/json;charset=utf-8,' +
-        encodeURIComponent(JSON.stringify(state, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute('href', dataStr);
-      downloadAnchor.setAttribute(
-        'download',
-        `arsip_dokumen_backup_${new Date().toISOString().slice(0, 10)}.json`
-      );
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      if (onNotify) {
-        onNotify(
-          'Berkas cadangan JSON berhasil diunduh. Simpan berkas ini untuk dibuka di komputer lain.'
-        );
-      }
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        const parsed = JSON.parse(text);
-        if (
-          parsed &&
-          Array.isArray(parsed.masterLocations) &&
-          Array.isArray(parsed.users)
-        ) {
-          if (onImportFullState) {
-            onImportFullState(parsed);
-          }
-        } else {
-          if (onNotify) {
-            onNotify('Format berkas JSON cadangan tidak sesuai struktur Arsip Dokumen.');
-          }
-        }
-      } catch {
-        if (onNotify) {
-          onNotify('Gagal membaca berkas JSON cadangan.');
-        }
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
 
   useEffect(() => {
     if (!isSuperAdmin) {
@@ -1342,71 +1282,6 @@ export const SettingView: React.FC<SettingViewProps> = ({
                 <Eye className="h-3.5 w-3.5" />
                 Lihat Pratinjau Pesan Email
               </button>
-            </div>
-          </div>
-
-          {/* Section 4: Sinkronisasi Data Antar-Komputer (Ekspor & Impor Cadangan JSON) */}
-          <div className="rounded-xl border border-blue-200 bg-white p-6 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Laptop className="h-5 w-5 text-blue-700" />
-                  <h2 className="text-base font-bold text-slate-900">
-                    Sinkronisasi &amp; Migrasi Data Antar-Komputer (Backup &amp; Restore JSON)
-                  </h2>
-                </div>
-                <p className="mt-1 text-xs text-slate-600 max-w-3xl leading-relaxed">
-                  Aplikasi saat ini beroperasi dengan penyimpanan peramban lokal (<em>Local Storage</em>). Jika Anda menginput data di <strong>Komputer 1</strong> dan ingin membuka atau melanjutkannya di <strong>Komputer 2</strong>, cukup ekspor cadangan dari Komputer 1 lalu impor di Komputer 2.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleExportJson}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
-                  title="Unduh seluruh data arsip ke dalam format JSON"
-                >
-                  <DownloadCloud className="h-4 w-4 text-blue-700" />
-                  Ekspor Cadangan (.json)
-                </button>
-
-                <label
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-blue-800 transition-colors shadow-xs cursor-pointer"
-                  title="Unggah berkas JSON cadangan untuk memulihkan data di komputer ini"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  <span>Impor Cadangan (.json)</span>
-                  <input
-                    type="file"
-                    accept=".json,application/json"
-                    onChange={handleImportJson}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
-                <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-[10px]">1</span>
-                  Langkah di Komputer Pertama (Tempat Input Awal)
-                </div>
-                <p className="mt-1.5 text-slate-600 text-[11px] leading-relaxed">
-                  Klik tombol <strong>&ldquo;Ekspor Cadangan (.json)&rdquo;</strong> di atas. Berkas bernama <code>arsip_dokumen_backup_*.json</code> akan tersimpan di folder Download. Kirimkan berkas tersebut via Email, Flashdisk, atau WhatsApp ke komputer kedua.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5">
-                <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[10px]">2</span>
-                  Langkah di Komputer Baru / Kedua
-                </div>
-                <p className="mt-1.5 text-slate-600 text-[11px] leading-relaxed">
-                  Buka tautan aplikasi di komputer baru, masuk dengan akun Super Admin, buka menu Setting ini, lalu klik <strong>&ldquo;Impor Cadangan (.json)&rdquo;</strong> dan pilih berkas yang sudah dikirim tadi. Seketika semua data arsip akan muncul persis sama.
-                </p>
-              </div>
             </div>
           </div>
 

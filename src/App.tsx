@@ -1048,22 +1048,6 @@ export default function App() {
     );
   };
 
-  const handleImportFullState = (newState: AppState) => {
-    setState(newState);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-      if (newState.companyProfile?.namaPerusahaan) {
-        localStorage.setItem(
-          'company_profile_backup_v1',
-          JSON.stringify(newState.companyProfile)
-        );
-      }
-    } catch {
-      // ignore
-    }
-    showToast('Seluruh data arsip dan pengguna berhasil diimpor & disinkronkan ke komputer ini.');
-  };
-
   const handleHydrateStateFromSheet = (nextState: AppState) => {
     skipNextGasSyncRef.current = true;
     setState(nextState);
@@ -1882,7 +1866,6 @@ export default function App() {
               onResetNonSuperAdminPasswords={handleResetNonSuperAdminPasswords}
               onResetSingleUserPassword={handleResetSingleUserPassword}
               onClearSampleUsers={handleClearSampleUsers}
-              onImportFullState={handleImportFullState}
               onNotify={showToast}
             />
           )}
