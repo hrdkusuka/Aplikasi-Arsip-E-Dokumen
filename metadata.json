@@ -1,0 +1,6 @@
+{
+  "name": "Arsip Dokumen",
+  "description": "Sistem Manajemen & Pemantauan Arsip Dokumen Terpadu (E-NOP, E-SPPT, Sertifikat Merk, dan Sertifikat K3) dengan Data Master, Pengingat Masa Berlaku, dan Ekspor Laporan Excel/PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

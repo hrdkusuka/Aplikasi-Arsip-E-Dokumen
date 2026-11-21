@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Arsip Dokumen — PT Kusuka Prima Nusantara</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col">
+
+  <!-- Top App Navigation -->
+  <header class="no-print sticky top-0 z-40 bg-slate-900 text-white border-b border-slate-800 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-white shadow-sm">
+          <i data-lucide="archive" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight">Sistem Arsip Dokumen Terpadu</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Google Apps Script</span>
+          </div>
+          <p class="text-xs text-slate-400">PT Kusuka Prima Nusantara · Cloud Database &amp; Drive Sync</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="loadAllData()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-semibold hover:bg-slate-700 transition">
+          <i data-lucide="refresh-cw" class="h-3.5 w-3.5 text-emerald-400"></i>
+          <span>Segarkan Data</span>
+        </button>
+        <div id="currentUserBadge" class="hidden sm:flex items-center gap-2 text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+          <i data-lucide="user-check" class="h-3.5 w-3.5 text-emerald-400"></i>
+          <span id="userEmailText" class="text-slate-300 font-mono">Memuat...</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row gap-6">
+
+    <!-- Sidebar Navigation Menu -->
+    <aside class="no-print w-full lg:w-64 shrink-0 space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-2">Menu Utama</div>
+        <nav class="space-y-1 text-xs">
+          <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold bg-emerald-50 text-emerald-800">
+            <span class="flex items-center gap-2.5"><i data-lucide="layout-dashboard" class="h-4 w-4"></i> Dashboard</span>
+            <span id="badge-total-docs" class="font-mono text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded-full">0</span>
+          </button>
+          <button onclick="switchTab('arsip-dokumen')" id="nav-arsip-dokumen" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-semibold text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="map-pin" class="h-4 w-4"></i> Lokasi Arsip Fisik</span>
+            <span id="badge-locations" class="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full">0</span>
+          </button>
+        </nav>
+
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-5 mb-2 px-2">Modul Dokumen</div>
+        <nav class="space-y-1 text-xs">
+          <button onclick="switchTab('enop')" id="nav-enop" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="file-check" class="h-4 w-4"></i> Bukti Bayar PBB</span>
+            <span id="badge-enop" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('esppt')" id="nav-esppt" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="file-text" class="h-4 w-4"></i> Arsip E-SPPT</span>
+            <span id="badge-esppt" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('merk')" id="nav-merk" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="award" class="h-4 w-4"></i> Sertifikat Merk</span>
+            <span id="badge-merk" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('k3')" id="nav-k3" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="shield" class="h-4 w-4"></i> Sertifikat K3</span>
+            <span id="badge-k3" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('tanah')" id="nav-tanah" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="land-plot" class="h-4 w-4"></i> E-Sertifikat Tanah</span>
+            <span id="badge-tanah" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('imb')" id="nav-imb" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="building" class="h-4 w-4"></i> E-IMB &amp; PBG</span>
+            <span id="badge-imb" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('slo')" id="nav-slo" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="zap" class="h-4 w-4 text-amber-500"></i> Sertifikat SLO</span>
+            <span id="badge-slo" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('timbangan')" id="nav-timbangan" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="scale" class="h-4 w-4 text-cyan-600"></i> Uji Timbangan</span>
+            <span id="badge-timbangan" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+        </nav>
+
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-5 mb-2 px-2">Setting</div>
+        <nav class="space-y-1 text-xs">
+          <button onclick="switchTab('users')" id="nav-users" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="key-round" class="h-4 w-4 text-purple-600"></i> Roles &amp; User</span>
+            <span id="badge-users" class="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">0</span>
+          </button>
+          <button onclick="switchTab('company')" id="nav-company" class="nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-50">
+            <span class="flex items-center gap-2.5"><i data-lucide="building-2" class="h-4 w-4 text-blue-600"></i> Setting Company</span>
+            <span class="text-[10px] text-slate-400">Profil</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="bg-gradient-to-br from-emerald-800 to-teal-900 rounded-xl p-4 text-white shadow-sm text-xs">
+        <div class="font-bold flex items-center gap-1.5">
+          <i data-lucide="database" class="h-4 w-4 text-emerald-300"></i>
+          <span>Google Sheets Database</span>
+        </div>
+        <p class="mt-1 text-slate-200 text-[11px] leading-relaxed">
+          Semua aksi input/edit langsung tersimpan di Google Sheets dan berkas di Google Drive tanpa batasan server!
+        </p>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 min-w-0">
+      
+      <!-- Notification Banner -->
+      <div id="toastBanner" class="hidden mb-4 p-3 rounded-lg text-xs font-semibold flex items-center justify-between transition-all">
+        <div class="flex items-center gap-2" id="toastMessage"></div>
+        <button onclick="hideToast()" class="opacity-70 hover:opacity-100">✕</button>
+      </div>
+
+      <!-- VIEW 1: DASHBOARD -->
+      <section id="view-dashboard" class="space-y-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">Dashboard Pemantauan Arsip &amp; Dokumen</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Ringkasan status fisik, legalitas, dan masa berlaku dokumen perusahaan</p>
+            </div>
+            <button onclick="openAddModal()" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm">
+              <i data-lucide="plus" class="h-4 w-4"></i>
+              <span>Tambah Dokumen Baru</span>
+            </button>
+          </div>
+
+          <!-- Metric Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <div class="text-[11px] font-semibold text-slate-500">Total Berkas Dokumen</div>
+              <div id="dash-total-docs" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+              <div class="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                <i data-lucide="check-circle" class="h-3 w-3"></i> Terverifikasi Cloud
+              </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div class="text-[11px] font-semibold text-blue-800">Tempat Arsip Fisik</div>
+              <div id="dash-total-locations" class="text-2xl font-bold text-blue-950 mt-1">0</div>
+              <div class="text-[10px] text-blue-700 font-semibold mt-1">Rak &amp; Lemari Gedung</div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div class="text-[11px] font-semibold text-amber-800">Segera Jatuh Tempo</div>
+              <div id="dash-warning-docs" class="text-2xl font-bold text-amber-950 mt-1">0</div>
+              <div class="text-[10px] text-amber-700 font-semibold mt-1">&lt; 30 Hari Kedepan</div>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
+              <div class="text-[11px] font-semibold text-rose-800">Sudah Kadaluarsa</div>
+              <div id="dash-expired-docs" class="text-2xl font-bold text-rose-950 mt-1">0</div>
+              <div class="text-[10px] text-rose-700 font-semibold mt-1">Perlu Perpanjangan Segera</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expiry Watchlist Table -->
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <i data-lucide="clock" class="h-4 w-4 text-amber-600"></i>
+              <h3 class="text-sm font-bold text-slate-900">Perhatian Masa Berlaku &amp; Jatuh Tempo</h3>
+            </div>
+            <span class="text-xs text-slate-400">Diperbarui realtime</span>
+          </div>
+
+          <div class="overflow-x-auto mt-4">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                <tr>
+                  <th class="py-2.5 px-3">Modul</th>
+                  <th class="py-2.5 px-3">No Arsip</th>
+                  <th class="py-2.5 px-3">Subjek / Pemilik</th>
+                  <th class="py-2.5 px-3">Jatuh Tempo</th>
+                  <th class="py-2.5 px-3">Sisa Waktu</th>
+                  <th class="py-2.5 px-3">Lokasi Fisik</th>
+                  <th class="py-2.5 px-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="expiryWatchlistBody" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="7" class="text-center py-6 text-slate-400">Memuat data jatuh tempo...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: DYNAMIC TABLE VIEW FOR ALL MODULES -->
+      <section id="view-table-section" class="hidden space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <h2 id="tableModuleTitle" class="text-lg font-bold text-slate-900">Daftar Dokumen</h2>
+              <p id="tableModuleDesc" class="text-xs text-slate-500 mt-0.5">Memuat data dari Google Sheets</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <div class="relative w-48 sm:w-64">
+                <i data-lucide="search" class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400"></i>
+                <input type="text" id="tableSearchInput" oninput="filterCurrentTable()" placeholder="Cari data..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600">
+              </div>
+              <button onclick="openAddModal()" class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm">
+                <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                <span>Tambah</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto mt-4 rounded-lg border border-slate-200">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead id="dynamicTableHead" class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                <!-- Injected via JS -->
+              </thead>
+              <tbody id="dynamicTableBody" class="divide-y divide-slate-100">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: SETTING COMPANY (PROFIL & LOGO PERUSAHAAN) -->
+      <section id="view-company-section" class="hidden">
+        <div class="max-w-4xl">
+          <div class="rounded-2xl border border-blue-200/90 bg-[#f8fbff] p-7 md:p-8 shadow-xs">
+            <div class="flex items-center gap-2.5 pb-3.5 border-b border-blue-100/90">
+              <i data-lucide="building-2" class="h-6 w-6 text-blue-600"></i>
+              <h2 class="text-lg font-bold text-slate-900 tracking-tight">Pengaturan Profil &amp; Logo Perusahaan</h2>
+            </div>
+            <div class="mt-6 space-y-6">
+              <div>
+                <label class="block text-sm font-semibold text-slate-800 mb-2">Nama Perusahaan (Ditampilkan di Portal Awal &amp; Header Laporan)</label>
+                <input type="text" id="companyInputName" value="PT Kusuka Prima Nusantara" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-slate-800 mb-2">Unggah File Logo Perusahaan (SVG, PNG, JPG)</label>
+                <div class="flex flex-wrap items-center gap-3">
+                  <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-800 shadow-2xs hover:bg-slate-50 transition-colors">
+                    <i data-lucide="upload" class="h-4 w-4 text-blue-600"></i>
+                    <span>Pilih Logo Baru...</span>
+                    <input type="file" accept="image/*" onchange="handleGasCompanyLogo(event)" class="hidden">
+                  </label>
+                  <button type="button" onclick="handleGasResetCompanyLogo()" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-800 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="h-4 w-4 text-slate-600"></i>
+                    <span>Reset Logo Bawaan</span>
+                  </button>
+                </div>
+              </div>
+              <div class="pt-2">
+                <button type="button" onclick="saveGasCompanyProfile()" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-xs transition-colors cursor-pointer">
+                  <i data-lucide="check" class="h-4 w-4 stroke-[2.5]"></i>
+                  <span>Simpan Perubahan Company</span>
+                </button>
+              </div>
+            </div>
+            <div class="mt-8 border-t border-blue-100/90 pt-5 flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5">
+                <span class="text-xs font-semibold text-slate-500">Logo Aktif Saat Ini:</span>
+                <div class="flex h-12 w-20 items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xs">
+                  <span id="gasCompanyLogoBadge" class="text-[10px] font-bold text-blue-700">KUSUKA</span>
+                </div>
+                <div class="text-xs">
+                  <div id="gasCompanyNameDisplay" class="font-semibold text-slate-800">PT Kusuka Prima Nusantara</div>
+                  <div class="text-[11px] text-slate-500 font-mono">Logo_PT_Kusuka_Prima_Nusantara.svg</div>
+                </div>
+              </div>
+              <span class="text-[11px] text-slate-400">Tersimpan otomatis ke sistem profil</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: ADD / EDIT DOKUMEN -->
+  <div id="recordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <h3 id="modalTitle" class="font-bold text-sm">Tambah Data Arsip</h3>
+          <p id="modalSubtitle" class="text-[11px] text-slate-400">Tersinkronisasi otomatis ke Google Sheets</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="recordForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4 text-xs">
+        <div id="modalFormFields" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Form fields dynamically injected based on active tab -->
+        </div>
+
+        <!-- File Upload to Google Drive -->
+        <div class="border-t border-slate-200 pt-4">
+          <label class="block font-semibold text-slate-700 mb-1">Unggah Berkas Scan / PDF ke Google Drive:</label>
+          <input type="file" id="modalFileInput" class="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+          <p class="text-[10px] text-slate-400 mt-1">Berkas akan diunggah langsung ke folder Google Drive perusahaan.</p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 font-semibold hover:bg-slate-50">Batal</button>
+          <button type="submit" id="btnSubmitForm" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-sm flex items-center gap-1.5">
+            <i data-lucide="save" class="h-4 w-4"></i>
+            <span>Simpan ke Google Sheets</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC & GOOGLE APPS SCRIPT BRIDGE -->
+  <script>
+    // State Aplikasi di Memori Klien
+    let appData = {
+      masterLocations: [],
+      docsENOP: [],
+      docsESPPT: [],
+      docsMerk: [],
+      docsK3: [],
+      docsTanah: [],
+      docsIMB: [],
+      docsSLO: [],
+      docsTimbangan: [],
+      masterProvinces: [],
+      masterStatuses: [],
+      users: []
+    };
+
+    let activeTab = 'dashboard';
+    let currentEditRowIndex = null;
+
+    // Inisialisasi saat Halaman Selesai Dimuat
+    window.onload = function() {
+      lucide.createIcons();
+      loadAllData();
+    };
+
+    // Panggil Backend Apps Script: getAllData()
+    function loadAllData() {
+      showToast('Memuat data dari Google Sheets...', 'info');
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(responseStr) {
+            try {
+              appData = JSON.parse(responseStr);
+              if (appData.userEmail) {
+                document.getElementById('userEmailText').innerText = appData.userEmail;
+              }
+              updateBadgesAndMetrics();
+              renderActiveTab();
+              showToast('Data berhasil diperbarui dari Google Sheets!', 'success');
+            } catch (e) {
+              console.error('Error parsing data:', e);
+              showToast('Gagal memproses data server: ' + e.message, 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            console.error('Server error:', err);
+            showToast('Gagal mengambil data: ' + err.message, 'error');
+          })
+          .getAllData();
+      } else {
+        // Mock fallback jika dijalankan di luar GAS preview
+        console.warn('Mode Preview Lokal: google.script.run tidak terdeteksi.');
+        showToast('Mode Browser Preview (Hubungkan ke Apps Script)', 'info');
+      }
+    }
+
+    function updateBadgesAndMetrics() {
+      const enopCount = (appData.docsENOP || []).length;
+      const espptCount = (appData.docsESPPT || []).length;
+      const merkCount = (appData.docsMerk || []).length;
+      const k3Count = (appData.docsK3 || []).length;
+      const tanahCount = (appData.docsTanah || []).length;
+      const imbCount = (appData.docsIMB || []).length;
+      const sloCount = (appData.docsSLO || []).length;
+      const timbanganCount = (appData.docsTimbangan || []).length;
+      const locCount = (appData.masterLocations || []).length;
+      const userCount = (appData.users || []).length;
+
+      const totalDocs = enopCount + espptCount + merkCount + k3Count + tanahCount + imbCount + sloCount + timbanganCount;
+
+      document.getElementById('badge-total-docs').innerText = totalDocs;
+      document.getElementById('dash-total-docs').innerText = totalDocs;
+      document.getElementById('badge-locations').innerText = locCount;
+      document.getElementById('dash-total-locations').innerText = locCount;
+
+      document.getElementById('badge-enop').innerText = enopCount;
+      document.getElementById('badge-esppt').innerText = espptCount;
+      document.getElementById('badge-merk').innerText = merkCount;
+      document.getElementById('badge-k3').innerText = k3Count;
+      document.getElementById('badge-tanah').innerText = tanahCount;
+      document.getElementById('badge-imb').innerText = imbCount;
+      document.getElementById('badge-slo').innerText = sloCount;
+      document.getElementById('badge-timbangan').innerText = timbanganCount;
+      if (document.getElementById('badge-users')) {
+        document.getElementById('badge-users').innerText = userCount;
+      }
+
+      renderExpiryWatchlist();
+    }
+
+    function renderExpiryWatchlist() {
+      const tbody = document.getElementById('expiryWatchlistBody');
+      const items = [];
+      const now = new Date();
+
+      // Collect documents that have expiry dates
+      (appData.docsK3 || []).forEach(d => {
+        if (d['MASA BERLAKU']) items.push({ modul: 'Sertifikat K3', noArsip: d['NO ARSIP'], subjek: d['NAMA PERUSAHAAN'] || d['NAMA PEMILIK'], tanggal: d['MASA BERLAKU'], lokasi: d['LOKASI ARSIP FISIK'] });
+      });
+      (appData.docsSLO || []).forEach(d => {
+        if (d['TANGGAL BERLAKU']) items.push({ modul: 'Sertifikat SLO', noArsip: d['NO ARSIP'], subjek: d['NAMA PERUSAHAAN'] || d['NOMOR SLO'], tanggal: d['TANGGAL BERLAKU'], lokasi: d['LOKASI ARSIP FISIK'] });
+      });
+      (appData.docsTimbangan || []).forEach(d => {
+        if (d['BERLAKU SAMPAI']) items.push({ modul: 'Uji Timbangan', noArsip: d['NOMOR SURAT PENGUJIAN'] || d['ID PENGUJIAN'], subjek: d['PEMILIK PEMAKAI'] || d['NAMA ALAT UKUR'], tanggal: d['BERLAKU SAMPAI'], lokasi: d['LOKASI ARSIP FISIK'] });
+      });
+      (appData.docsESPPT || []).forEach(d => {
+        if (d['JATUH TEMPO']) items.push({ modul: 'Arsip E-SPPT', noArsip: d['NO ARSIP'], subjek: d['NAMA WAJIB PAJAK'], tanggal: d['JATUH TEMPO'], lokasi: d['LOKASI ARSIP FISIK'] });
+      });
+
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-400">Tidak ada dokumen dengan masa berlaku yang terdaftar.</td></tr>';
+        return;
+      }
+
+      let warningCount = 0;
+      let expiredCount = 0;
+
+      items.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+      tbody.innerHTML = items.map(item => {
+        const targetDate = new Date(item.tanggal);
+        const diffDays = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+        let badge = '';
+        let sisaText = '';
+
+        if (diffDays < 0) {
+          expiredCount++;
+          badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Kadaluarsa</span>';
+          sisaText = `<span class="text-rose-600 font-semibold">Lewat ${Math.abs(diffDays)} hari</span>`;
+        } else if (diffDays <= 30) {
+          warningCount++;
+          badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Segera Habis</span>';
+          sisaText = `<span class="text-amber-600 font-semibold">${diffDays} hari lagi</span>`;
+        } else {
+          badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Aktif</span>';
+          sisaText = `<span class="text-slate-600">${diffDays} hari</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 px-3 font-semibold text-slate-800">${item.modul}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-600">${item.noArsip || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-700">${item.subjek || '-'}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-600">${item.tanggal || '-'}</td>
+            <td class="py-2.5 px-3">${sisaText}</td>
+            <td class="py-2.5 px-3 text-slate-600">${item.lokasi || '-'}</td>
+            <td class="py-2.5 px-3 text-center">${badge}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('dash-warning-docs').innerText = warningCount;
+      document.getElementById('dash-expired-docs').innerText = expiredCount;
+    }
+
+    // Navigasi Tab
+    function switchTab(tabId) {
+      activeTab = tabId;
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-50', 'text-emerald-800');
+        btn.classList.add('text-slate-600');
+      });
+      const activeBtn = document.getElementById('nav-' + tabId);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-emerald-50', 'text-emerald-800');
+        activeBtn.classList.remove('text-slate-600');
+      }
+
+      const companySec = document.getElementById('view-company-section');
+      const tableSec = document.getElementById('view-table-section');
+      const dashSec = document.getElementById('view-dashboard');
+
+      if (tabId === 'dashboard') {
+        dashSec.classList.remove('hidden');
+        tableSec.classList.add('hidden');
+        if (companySec) companySec.classList.add('hidden');
+      } else if (tabId === 'company') {
+        dashSec.classList.add('hidden');
+        tableSec.classList.add('hidden');
+        if (companySec) {
+          companySec.classList.remove('hidden');
+          lucide.createIcons();
+        }
+      } else {
+        dashSec.classList.add('hidden');
+        tableSec.classList.remove('hidden');
+        if (companySec) companySec.classList.add('hidden');
+        renderActiveTab();
+      }
+    }
+
+    let gasUploadedLogoDataUrl = '';
+
+    function handleGasCompanyLogo(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        gasUploadedLogoDataUrl = e.target.result;
+        showToast('Logo berhasil dipilih! Klik "Simpan Perubahan Company" untuk menerapkan.', 'info');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleGasResetCompanyLogo() {
+      gasUploadedLogoDataUrl = '';
+      showToast('Logo direset ke bawaan.', 'info');
+    }
+
+    function saveGasCompanyProfile() {
+      const name = document.getElementById('companyInputName').value.trim();
+      if (!name) {
+        showToast('Nama perusahaan tidak boleh kosong', 'error');
+        return;
+      }
+      document.getElementById('gasCompanyNameDisplay').innerText = name;
+      showToast('Pengaturan profil dan logo perusahaan berhasil disimpan!', 'success');
+    }
+
+    function renderActiveTab() {
+      if (activeTab === 'dashboard') return;
+      const config = getModuleConfig(activeTab);
+      document.getElementById('tableModuleTitle').innerText = config.title;
+      document.getElementById('tableModuleDesc').innerText = config.desc;
+
+      const dataArray = appData[config.stateKey] || [];
+      const thead = document.getElementById('dynamicTableHead');
+      const tbody = document.getElementById('dynamicTableBody');
+
+      thead.innerHTML = `
+        <tr>
+          ${config.headers.map(h => `<th class="py-2.5 px-3">${h}</th>`).join('')}
+          <th class="py-2.5 px-3 text-center">Aksi</th>
+        </tr>
+      `;
+
+      if (dataArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${config.headers.length + 1}" class="text-center py-8 text-slate-400">Belum ada data pada modul ini. Klik tombol "+ Tambah" di atas untuk menambahkan berkas.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = dataArray.map(row => {
+        return `
+          <tr class="hover:bg-slate-50">
+            ${config.headers.map(h => `<td class="py-2.5 px-3 text-slate-700">${row[h] !== undefined ? row[h] : '-'}</td>`).join('')}
+            <td class="py-2.5 px-3 text-center">
+              <button onclick="deleteRow('${config.tabName}', ${row._rowIndex})" class="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded hover:bg-rose-50 transition" title="Hapus Data">
+                <i data-lucide="trash-2" class="h-3.5 w-3.5 inline"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function getModuleConfig(tab) {
+      switch (tab) {
+        case 'arsip-dokumen':
+          return {
+            title: 'Master Lokasi Arsip Fisik',
+            desc: 'Daftar tempat penyimpanan dokumen asli (gedung, rak, lemari)',
+            tabName: 'Arsip Dokumen',
+            stateKey: 'masterLocations',
+            headers: ['NO', 'ID LOKASI', 'NAMA LOKASI ARSIP', 'PENANGGUNG JAWAB (PIC)', 'LOKASI FISIK (GEDUNG / RAK / LEMARI)', 'TOTAL DOKUMEN TERSIMPAN', 'RINCIAN DOKUMEN FISIK', 'STATUS']
+          };
+        case 'enop':
+          return {
+            title: 'Bukti Bayar PBB (E-NOP)',
+            desc: 'Data tanda terima pelunasan Pajak Bumi & Bangunan',
+            tabName: 'Bukti Bayar PBB (E-NOP)',
+            stateKey: 'docsENOP',
+            headers: ['NO ARSIP', 'TANGGAL TRANSAKSI', 'PROVINSI', 'KOTA / KABUPATEN', 'STATUS BAYAR', 'NOP (18 DIGIT)', 'NAMA WAJIB PAJAK', 'ALAMAT WAJIB PAJAK', 'TAHUN PAJAK', 'LOKASI OBJEK PAJAK', 'LOKASI ARSIP FISIK']
+          };
+        case 'esppt':
+          return {
+            title: 'Arsip E-SPPT',
+            desc: 'Surat Pemberitahuan Pajak Terutang tahunan',
+            tabName: 'Arsip E-SPPT',
+            stateKey: 'docsESPPT',
+            headers: ['NO ARSIP', 'NOP (18 DIGIT)', 'TAHUN PAJAK', 'NAMA WAJIB PAJAK', 'ALAMAT WAJIB PAJAK', 'LETAK OBJEK PAJAK', 'JATUH TEMPO', 'LOKASI ARSIP FISIK']
+          };
+        case 'merk':
+          return {
+            title: 'Sertifikat Merk',
+            desc: 'Hak Kekayaan Intelektual (HAKI) dan etiket merk',
+            tabName: 'Sertifikat Merk',
+            stateKey: 'docsMerk',
+            headers: ['NO ARSIP', 'NAMA PEMILIK MERK', 'ALAMAT', 'NO PENDAFTARAN', 'ETIKET MERK / BRAND', 'NO PERMOHONAN', 'TANGGAL PENERIMAAN', 'TANGGAL PENGAJUAN', 'KELAS BARANG/JASA', 'URAIAN WARNA', 'LOKASI ARSIP FISIK']
+          };
+        case 'k3':
+          return {
+            title: 'Sertifikat K3 / SMK3',
+            desc: 'Pemeriksaan kelayakan K3, boiler, forklift, bejana tekan',
+            tabName: 'Sertifikat K3',
+            stateKey: 'docsK3',
+            headers: ['NO ARSIP', 'JENIS OBJEK K3', 'NAMA PERUSAHAAN', 'NAMA PEMILIK', 'ALAMAT', 'LOKASI UNIT', 'JENIS', 'MERK', 'TYPE', 'NO SERI', 'KAPASITAS', 'TANGGAL PEMERIKSAAN', 'MASA BERLAKU', 'LOKASI ARSIP FISIK']
+          };
+        case 'tanah':
+          return {
+            title: 'E-Sertifikat Tanah',
+            desc: 'Sertifikat kepemilikan tanah SHM/HGB, NIB, luas m2',
+            tabName: 'E-Sertifikat Tanah',
+            stateKey: 'docsTanah',
+            headers: ['NO ARSIP', 'NOMOR SERTIFIKAT', 'NIB (14 DIGIT)', 'JENIS HAK', 'ASAL HAK', 'NAMA PEMEGANG HAK', 'LUAS TANAH (M2)', 'DESA / KELURAHAN', 'KECAMATAN', 'KOTA/KABUPATEN', 'TANGGAL PENERBITAN', 'STATUS DOKUMEN', 'STATUS BEBAN', 'LOKASI ARSIP FISIK']
+          };
+        case 'imb':
+          return {
+            title: 'E-IMB & PBG',
+            desc: 'Izin Mendirikan Bangunan & Persetujuan Bangunan Gedung',
+            tabName: 'E-IMB & PBG',
+            stateKey: 'docsIMB',
+            headers: ['NO ARSIP', 'NO KEPUTUSAN / IZIN', 'TAHUN', 'NAMA PEMILIK / ATAS NAMA', 'BANGUNAN INDUK', 'BERMAKSUD UNTUK', 'LOKASI BANGUNAN', 'KOTA / KABUPATEN', 'TANGGAL PERMOHONAN', 'LOKASI ARSIP FISIK']
+          };
+        case 'slo':
+          return {
+            title: 'Sertifikat Laik Operasi (SLO)',
+            desc: 'Sertifikat Laik Operasi genset & kelistrikan',
+            tabName: 'Sertifikat SLO',
+            stateKey: 'docsSLO',
+            headers: ['NO ARSIP', 'NOMOR SLO', 'ID SLO', 'JENIS SLO', 'NAMA PERUSAHAAN', 'JENIS INSTALASI', 'SUMBER ENERGI', 'KAPASITAS (kVA)', 'DAYA (kW)', 'TEGANGAN (V)', 'LEMBAGA INSPEKSI', 'TANGGAL TERBIT', 'TANGGAL BERLAKU', 'STATUS SLO', 'LOKASI ARSIP FISIK']
+          };
+        case 'timbangan':
+          return {
+            title: 'Uji Timbangan (Metrologi & Tera)',
+            desc: 'Hasil pengujian tera ulang UTTP timbangan jembatan/elektronik',
+            tabName: 'Uji Timbangan',
+            stateKey: 'docsTimbangan',
+            headers: ['ID PENGUJIAN', 'JENIS TIMBANGAN', 'NOMOR SURAT PENGUJIAN', 'NAMA ALAT UKUR', 'MEREK PABRIK BUATAN', 'MODEL TIPE', 'KAPASITAS MAKSIMUM (KG)', 'PEMILIK PEMAKAI', 'INSTANSI PENERBIT', 'TANGGAL TERBIT SURAT', 'BERLAKU SAMPAI', 'STATUS MASA BERLAKU', 'LOKASI ARSIP FISIK']
+          };
+        case 'users':
+          return {
+            title: 'Roles & User (Hak Akses)',
+            desc: 'Daftar akun pengguna, peran, dan level otorisasi sistem',
+            tabName: 'Pengguna & Otorisasi',
+            stateKey: 'users',
+            headers: ['NO', 'ID PENGGUNA', 'NAMA LENGKAP', 'USERNAME', 'EMAIL TERDAFTAR', 'PERAN (ROLE)', 'LEVEL AKSES', 'STATUS AKUN', 'LOGIN TERAKHIR']
+          };
+        case 'company':
+          return {
+            title: 'Setting Company (Profil Perusahaan)',
+            desc: 'Informasi identitas dan instansi pemilik dokumen arsip',
+            tabName: 'Ringkasan & Dashboard',
+            stateKey: 'masterLocations',
+            headers: ['NO', 'MODUL / MENU SISTEM', 'NAMA TAB SPREADSHEET', 'JUMLAH DATA AKTIF', 'STATUS SINKRONISASI']
+          };
+        default:
+          return { title: 'Dokumen', desc: '', tabName: 'Arsip Dokumen', stateKey: 'masterLocations', headers: [] };
+      }
+    }
+
+    // Modal Add / Edit
+    function openAddModal() {
+      const modal = document.getElementById('recordModal');
+      const container = document.getElementById('modalFormFields');
+      const config = getModuleConfig(activeTab === 'dashboard' ? 'enop' : activeTab);
+      currentEditRowIndex = null;
+
+      document.getElementById('modalTitle').innerText = 'Tambah ' + config.title;
+      container.innerHTML = config.headers.filter(h => h !== 'NO' && h !== 'TOTAL DOKUMEN TERSIMPAN' && h !== 'RINCIAN DOKUMEN FISIK').map(h => {
+        let type = 'text';
+        if (h.includes('TANGGAL') || h.includes('BERLAKU') || h.includes('TEMPO')) type = 'date';
+        return `
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">${h}:</label>
+            <input type="${type}" name="${h}" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 text-xs" required>
+          </div>
+        `;
+      }).join('');
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('recordModal').classList.add('hidden');
+      document.getElementById('recordForm').reset();
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      const config = getModuleConfig(activeTab === 'dashboard' ? 'enop' : activeTab);
+      const form = document.getElementById('recordForm');
+      const formData = new FormData(form);
+      const rowData = {};
+
+      formData.forEach((value, key) => {
+        rowData[key] = value;
+      });
+
+      const fileInput = document.getElementById('modalFileInput');
+      const btn = document.getElementById('btnSubmitForm');
+      btn.disabled = true;
+      btn.innerText = 'Menyimpan...';
+
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const base64 = evt.target.result;
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+              .withSuccessHandler(function(uploadRes) {
+                if (uploadRes && uploadRes.success) {
+                  rowData['LINK BERKAS DRIVE'] = uploadRes.viewUrl;
+                }
+                saveToSpreadsheet(config.tabName, rowData);
+              })
+              .withFailureHandler(function() {
+                saveToSpreadsheet(config.tabName, rowData);
+              })
+              .uploadFileToDrive(base64, file.name, file.type);
+          } else {
+            saveToSpreadsheet(config.tabName, rowData);
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        saveToSpreadsheet(config.tabName, rowData);
+      }
+    }
+
+    function saveToSpreadsheet(tabName, rowData) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            closeModal();
+            document.getElementById('btnSubmitForm').disabled = false;
+            document.getElementById('btnSubmitForm').innerText = 'Simpan ke Google Sheets';
+            showToast('Data berhasil disimpan ke Google Sheets!', 'success');
+            loadAllData();
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('btnSubmitForm').disabled = false;
+            document.getElementById('btnSubmitForm').innerText = 'Simpan ke Google Sheets';
+            showToast('Gagal menyimpan: ' + err.message, 'error');
+          })
+          .saveRecord(tabName, rowData, currentEditRowIndex);
+      } else {
+        closeModal();
+        document.getElementById('btnSubmitForm').disabled = false;
+        document.getElementById('btnSubmitForm').innerText = 'Simpan ke Google Sheets';
+        showToast('Simulasi simpan data lokal (Hubungkan ke Apps Script)', 'success');
+      }
+    }
+
+    function deleteRow(tabName, rowIndex) {
+      if (!confirm('Apakah Anda yakin ingin menghapus data baris ini dari Google Sheets?')) return;
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        showToast('Menghapus baris...', 'info');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            showToast('Baris data berhasil dihapus dari Google Sheets!', 'success');
+            loadAllData();
+          })
+          .withFailureHandler(function(err) {
+            showToast('Gagal menghapus: ' + err.message, 'error');
+          })
+          .deleteRecord(tabName, rowIndex);
+      }
+    }
+
+    function filterCurrentTable() {
+      const q = document.getElementById('tableSearchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#dynamicTableBody tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    function showToast(msg, type = 'info') {
+      const banner = document.getElementById('toastBanner');
+      const text = document.getElementById('toastMessage');
+      banner.className = 'mb-4 p-3 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ';
+
+      if (type === 'success') {
+        banner.className += 'bg-emerald-100 text-emerald-900 border border-emerald-300';
+        text.innerHTML = '<i data-lucide="check-circle" class="h-4 w-4 text-emerald-600 inline"></i> <span>' + msg + '</span>';
+      } else if (type === 'error') {
+        banner.className += 'bg-rose-100 text-rose-900 border border-rose-300';
+        text.innerHTML = '<i data-lucide="alert-circle" class="h-4 w-4 text-rose-600 inline"></i> <span>' + msg + '</span>';
+      } else {
+        banner.className += 'bg-blue-100 text-blue-900 border border-blue-300';
+        text.innerHTML = '<i data-lucide="info" class="h-4 w-4 text-blue-600 inline"></i> <span>' + msg + '</span>';
+      }
+
+      banner.classList.remove('hidden');
+      lucide.createIcons();
+      setTimeout(hideToast, 4000);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBanner').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
