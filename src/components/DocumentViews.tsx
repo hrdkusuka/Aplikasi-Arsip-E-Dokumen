@@ -489,7 +489,7 @@ export const DocumentViews: React.FC<DocumentViewsProps> = ({
     setMerkUraianWarna('');
 
     setK3JenisObjek('Pesawat Angkat & Angkut');
-    setK3NamaPerusahaan('');
+    setK3NamaPerusahaan(state.companyProfile?.namaPerusahaan || '');
     setK3NamaPemilik('');
     setK3Alamat('');
     setK3LokasiUnit('');

@@ -390,7 +390,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <section>
         <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            <div className="text-xs font-semibold text-blue-700">
+              {state.companyProfile?.namaPerusahaan || 'Perusahaan'}
+            </div>
+            <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900">
               Pemantauan Arsip Dokumen Realtime
             </h1>
             <p className="mt-1 text-sm text-slate-600">

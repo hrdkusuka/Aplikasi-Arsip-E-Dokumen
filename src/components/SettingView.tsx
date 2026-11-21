@@ -605,7 +605,7 @@ export const SettingView: React.FC<SettingViewProps> = ({
               {/* Field 1: Nama Perusahaan */}
               <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-2">
-                  Nama Perusahaan (Ditampilkan di Portal Awal &amp; Header Laporan)
+                  Nama Perusahaan (Ditampilkan di Sidebar, Portal Awal, Dashboard, E-Book &amp; Header Laporan)
                 </label>
                 <input
                   type="text"
@@ -674,7 +674,7 @@ export const SettingView: React.FC<SettingViewProps> = ({
                 </div>
               </div>
               <span className="text-[11px] text-slate-400">
-                Logo otomatis diterapkan ke Portal Awal, Header Laporan Excel &amp; PDF
+                Nama &amp; logo otomatis diterapkan ke Sidebar, Portal Awal, Dashboard, E-Book, Laporan Excel &amp; PDF, serta Google Sheets
               </span>
             </div>
           </div>
@@ -1320,7 +1320,7 @@ export const SettingView: React.FC<SettingViewProps> = ({
                     <div className="flex items-start gap-2">
                       <span className="font-semibold text-slate-500 w-20 shrink-0">Dari:</span>
                       <span className="text-slate-800">
-                        Sistem Otomatis Arsip Dokumen &lt;notifikasi.arsip@kusukaprima.co.id&gt;
+                        Sistem Otomatis Arsip Dokumen — {state.companyProfile.namaPerusahaan || 'Perusahaan'}
                       </span>
                     </div>
                     <div className="flex items-start gap-2">
@@ -1339,7 +1339,7 @@ export const SettingView: React.FC<SettingViewProps> = ({
                     <div className="flex items-start gap-2">
                       <span className="font-semibold text-slate-500 w-20 shrink-0">Subjek:</span>
                       <span className="font-bold text-slate-900">
-                        [PENGINGAT RESMI] Dokumen Arsip Jatuh Tempo Dalam 30 Hari — {state.companyProfile.namaPerusahaan || 'PT Kusuka Prima Indonesia'}
+                        [PENGINGAT RESMI] Dokumen Arsip Jatuh Tempo Dalam 30 Hari — {state.companyProfile.namaPerusahaan || 'Perusahaan'}
                       </span>
                     </div>
                   </div>
@@ -1347,11 +1347,19 @@ export const SettingView: React.FC<SettingViewProps> = ({
                   {/* Email Body Content */}
                   <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs text-xs space-y-3">
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                      <div className="h-6 w-6 rounded bg-blue-700 text-white font-bold text-xs flex items-center justify-center">
-                        K
-                      </div>
+                      {state.companyProfile.logoDataUrl ? (
+                        <img
+                          src={state.companyProfile.logoDataUrl}
+                          alt={state.companyProfile.namaPerusahaan || 'Logo'}
+                          className="h-6 w-6 rounded object-contain border border-slate-200 bg-white p-0.5"
+                        />
+                      ) : (
+                        <div className="h-6 w-6 rounded bg-blue-700 text-white font-bold text-xs flex items-center justify-center">
+                          {(state.companyProfile.namaPerusahaan || 'A').charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <span className="font-bold text-sm text-slate-900">
-                        {state.companyProfile.namaPerusahaan || 'PT Kusuka Prima Indonesia'}
+                        {state.companyProfile.namaPerusahaan || 'Perusahaan'}
                       </span>
                     </div>
 

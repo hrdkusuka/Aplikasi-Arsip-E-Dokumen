@@ -609,26 +609,35 @@ export function exportToPDF(
 
   const currentUser = state.users.find((u) => u.id === state.currentUserId);
 
+  const companyTitle = (
+    state.companyProfile?.namaPerusahaan || 'SISTEM MANAJEMEN ARSIP DOKUMEN TERPADU'
+  ).toUpperCase();
+
   const addReportHeader = (title: string, startY: number): number => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
-    doc.text('SISTEM MANAJEMEN ARSIP DOKUMEN TERPADU', 14, startY);
+    doc.text(companyTitle, 14, startY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 58, 138);
+    doc.text('SISTEM MANAJEMEN ARSIP DOKUMEN TERPADU', 14, startY + 5);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(71, 85, 105);
-    doc.text(title, 14, startY + 6);
+    doc.text(title, 14, startY + 10);
     doc.text(
       `Tanggal Cetak: ${timestampStr}  |  Dicetak oleh: ${currentUser?.namaLengkap || 'Administrator'} (${currentUser?.role || '-'})`,
       14,
-      startY + 11
+      startY + 15
     );
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.4);
-    doc.line(14, startY + 14, 283, startY + 14);
-    return startY + 19;
+    doc.line(14, startY + 18, 283, startY + 18);
+    return startY + 23;
   };
 
   let currentY = addReportHeader(

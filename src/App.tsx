@@ -328,6 +328,14 @@ export default function App() {
     }
   }, [state]);
 
+  // Sinkronkan judul tab browser (document.title) secara otomatis dengan Nama Perusahaan
+  useEffect(() => {
+    const companyName = state.companyProfile?.namaPerusahaan?.trim();
+    document.title = companyName
+      ? `Arsip Dokumen — ${companyName}`
+      : 'Arsip Dokumen';
+  }, [state.companyProfile?.namaPerusahaan]);
+
   // Auto-load data riil terbaru dari Google Sheets setiap kali aplikasi dibuka jika Apps Script sudah terhubung
   useEffect(() => {
     if (!isValidAppsScriptUrl(gasConfig.webAppUrl)) {
@@ -830,18 +838,45 @@ export default function App() {
     showToast('Role berhasil dihapus dari daftar Setting.');
   };
 
-  const handleSaveCompanyProfile = (profile: CompanyProfile) => {
-    setState((prev) => ({
-      ...prev,
+  const handleSaveCompanyProfile = async (profile: CompanyProfile) => {
+    const nextState: AppState = {
+      ...state,
       companyProfile: profile,
-    }));
+    };
+    skipNextGasSyncRef.current = true;
+    setState(nextState);
     try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
       localStorage.setItem('company_profile_backup_v1', JSON.stringify(profile));
     } catch {
       // ignore
     }
+
+    if (isValidAppsScriptUrl(gasConfig.webAppUrl)) {
+      setGasSyncStatus('syncing');
+      const res = await syncStateToGas(gasConfig.webAppUrl, nextState, gasConfig.apiToken);
+      if (res.success) {
+        setGasSyncStatus('synced');
+        const updated = saveGasConfig({
+          lastSyncedAt: res.updatedAt || new Date().toISOString(),
+          ...(res.spreadsheetUrl ? { spreadsheetUrl: res.spreadsheetUrl } : {}),
+          ...(res.spreadsheetName ? { spreadsheetName: res.spreadsheetName } : {}),
+        });
+        setGasConfig(updated);
+        showToast(
+          `Profil Company "${profile.namaPerusahaan}" berhasil disimpan ke seluruh aplikasi & Google Sheets.`
+        );
+        return;
+      }
+      setGasSyncStatus('error');
+      showToast(
+        `Profil Company "${profile.namaPerusahaan}" diperbarui di aplikasi, namun gagal tersinkron ke Google Sheets (${res.error || 'cek koneksi Apps Script'}).`
+      );
+      return;
+    }
+
     showToast(
-      `Profil Company "${profile.namaPerusahaan}" berhasil disimpan dan diperbarui pada Portal Awal & Header Laporan.`
+      `Profil Company "${profile.namaPerusahaan}" berhasil disimpan dan diperbarui di seluruh menu, E-Book, Portal Awal & Laporan.`
     );
   };
 
@@ -1154,26 +1189,41 @@ export default function App() {
         }`}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between border-b border-slate-800 px-5">
+        <div className="flex min-h-16 items-center justify-between gap-2 border-b border-slate-800 px-4 py-3">
           <button
             type="button"
             onClick={() => {
               setActiveView('dashboard');
               setMobileMenuOpen(false);
             }}
-            className="flex items-center gap-2.5 text-left"
+            className="flex items-center gap-2.5 text-left min-w-0 flex-1"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-              <FolderArchive className="h-4 w-4" />
+            {state.companyProfile?.logoDataUrl ? (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white p-1 shadow-xs">
+                <img
+                  src={state.companyProfile.logoDataUrl}
+                  alt={state.companyProfile.namaPerusahaan || 'Logo'}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <FolderArchive className="h-4 w-4" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="font-display text-sm font-bold tracking-tight text-white leading-tight truncate">
+                Arsip Dokumen
+              </div>
+              <div className="text-[11px] font-medium text-sky-300/90 leading-tight truncate mt-0.5">
+                {state.companyProfile?.namaPerusahaan || 'Perusahaan'}
+              </div>
             </div>
-            <span className="font-display text-base font-bold tracking-tight text-white whitespace-nowrap">
-              Arsip Dokumen
-            </span>
           </button>
           <button
             type="button"
             onClick={() => setMobileMenuOpen(false)}
-            className="rounded p-1 text-slate-400 hover:text-white lg:hidden"
+            className="rounded p-1 text-slate-400 hover:text-white lg:hidden shrink-0"
           >
             <X className="h-5 w-5" />
           </button>

@@ -435,7 +435,7 @@ export function generateEBookPDF(state: AppState) {
       [
         'Sertifikat Merk (DJKI)',
         'No Pendaftaran (IDM), Tanggal Penerimaan, Etiket Merk (Gambar Scan), Kelas Barang/Jasa (NICE), Nama Pemilik, Jatuh Tempo (10 Thn)',
-        'Perlindungan hak eksklusif brand produk PT Kusuka Prima. Wajib perpanjangan sebelum jatuh tempo 10 tahun.',
+        `Perlindungan hak eksklusif brand produk ${companyName}. Wajib perpanjangan sebelum jatuh tempo 10 tahun.`,
       ],
     ],
     theme: 'grid',

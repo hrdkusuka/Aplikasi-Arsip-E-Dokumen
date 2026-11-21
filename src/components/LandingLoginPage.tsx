@@ -168,10 +168,27 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
           href="#top"
           className="flex items-center gap-3 font-display text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-500/20 text-amber-300">
-            <FolderArchive className="h-5 w-5" />
+          {state.companyProfile?.logoDataUrl ? (
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-white p-1">
+              <img
+                src={state.companyProfile.logoDataUrl}
+                alt={state.companyProfile.namaPerusahaan || 'Logo Perusahaan'}
+                className="max-h-full max-w-full object-contain"
+              />
+            </span>
+          ) : (
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-500/20 text-amber-300">
+              <FolderArchive className="h-5 w-5" />
+            </span>
+          )}
+          <span className="flex flex-col leading-tight">
+            <span>Arsip Dokumen</span>
+            {state.companyProfile?.namaPerusahaan && (
+              <span className="text-[11px] font-medium text-sky-300/90">
+                {state.companyProfile.namaPerusahaan}
+              </span>
+            )}
           </span>
-          <span>Arsip Dokumen</span>
         </a>
 
         <div className="flex items-center gap-3 shrink-0">
@@ -566,9 +583,11 @@ export const LandingLoginPage: React.FC<LandingLoginPageProps> = ({
 
       {/* Colored Institutional Footer */}
       <footer className="relative z-10 border-t border-white/15 bg-[#081221]/90 px-6 py-4 text-xs text-blue-200/80">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between">
-          <span className="font-semibold text-amber-300">Arsip Dokumen</span>
-          <span>Sistem Manajemen & Pemantauan Arsip Terpadu</span>
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4">
+          <span className="font-semibold text-amber-300">
+            {state.companyProfile?.namaPerusahaan || 'Arsip Dokumen'}
+          </span>
+          <span>Sistem Manajemen &amp; Pemantauan Arsip Terpadu</span>
         </div>
       </footer>
     </div>

@@ -407,7 +407,7 @@ CREATE TABLE docs_slo (
             <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-xs text-blue-900">
               <span className="font-bold">Elemen Wajib Pada Label:</span>
               <p className="mt-1">
-                Kop PT Kusuka Prima Nusantara, Kategori Dokumen, Nomor Arsip Sistem, Nomor Registrasi Resmi Dokumen, Lokasi Lemari Fisik, serta Garis Barcode Unik.
+                Kop {companyName}, Kategori Dokumen, Nomor Arsip Sistem, Nomor Registrasi Resmi Dokumen, Lokasi Lemari Fisik, serta Garis Barcode Unik.
               </p>
             </div>
           </div>
@@ -542,7 +542,7 @@ CREATE TABLE docs_slo (
               5.3 Opsi Deployment Mandiri ke Domain Perusahaan
             </h3>
             <p className="text-xs sm:text-sm">
-              Jika perusahaan ingin memasang aplikasi di domain sendiri (misal: <code>arsip.kusukaprima.co.id</code>):
+              Jika {companyName} ingin memasang aplikasi di domain sendiri (misal: <code>arsip.perusahaan-anda.co.id</code>):
             </p>
             <ol className="list-decimal pl-5 space-y-1 text-xs sm:text-sm text-slate-600">
               <li>Jalankan perintah build: <code>npm run build</code> untuk menghasilkan bundel web di folder <code>dist/</code>.</li>
@@ -1272,16 +1272,29 @@ CREATE TABLE docs_slo (
       {/* Top Banner Toolbar */}
       <div className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-xs lg:flex-row lg:items-center">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
-              <BookOpen className="h-4 w-4" />
-            </span>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-              Buku Panduan E-Book Sistem Arsip Dokumen
-            </h1>
+          <div className="flex items-center gap-2.5">
+            {state.companyProfile?.logoDataUrl ? (
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-1 shadow-xs">
+                <img
+                  src={state.companyProfile.logoDataUrl}
+                  alt={companyName}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </span>
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
+                <BookOpen className="h-4 w-4" />
+              </span>
+            )}
+            <div>
+              <div className="text-xs font-semibold text-blue-700">{companyName}</div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl leading-tight">
+                Buku Panduan E-Book Sistem Arsip Dokumen
+              </h1>
+            </div>
           </div>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Dokumentasi komprehensif 8 kategori arsip, metrologi timbangan &amp; SLO, reset password, online PWA, serta integrasi database Supabase.
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-500">
+            Dokumentasi resmi {companyName}: 8 kategori arsip, metrologi timbangan &amp; SLO, hak akses RBAC, penyimpanan Google Sheets (Apps Script), serta deploy GitHub &amp; Vercel.
           </p>
         </div>
 

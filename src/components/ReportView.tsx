@@ -195,8 +195,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
       {/* Header & Export Actions */}
       <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Laporan & Ekspor Arsip Dokumen
+          <div className="text-xs font-semibold text-blue-700">
+            {state.companyProfile?.namaPerusahaan || 'Perusahaan'}
+          </div>
+          <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900">
+            Laporan &amp; Ekspor Arsip Dokumen
           </h1>
           <p className="mt-1 text-sm text-slate-600">
             Pilih kategori dokumen, saring lokasi arsip fisik, tinjau pratinjau rekapitulasi, dan unduh dalam format Excel (.xlsx) atau PDF (.pdf).
