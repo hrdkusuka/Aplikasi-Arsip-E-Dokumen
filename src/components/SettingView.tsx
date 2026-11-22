@@ -268,39 +268,67 @@ export const SettingView: React.FC<SettingViewProps> = ({
     }
 
     // Jika file gambar bitmap (PNG/JPG/WebP), optimasi/kompres ke canvas
-    // agar ukuran string base64 kecil (< 35KB) sehingga aman disimpan di LocalStorage & Google Sheets
+    // agar ukuran string base64 selalu ringkas (< 38KB) sehingga cepat tersinkron ke HP & Google Sheets
     const reader = new FileReader();
     reader.onload = (loadEvent) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_WIDTH = 480;
-        const MAX_HEIGHT = 240;
-        let width = img.width;
-        let height = img.height;
+        const renderScaled = (maxW: number, maxH: number, fillWhiteBg = false) => {
+          let width = img.width || maxW;
+          let height = img.height || maxH;
+          const ratio = Math.min(maxW / width, maxH / height, 1);
+          width = Math.max(1, Math.round(width * ratio));
+          height = Math.max(1, Math.round(height * ratio));
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return null;
+          if (fillWhiteBg) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
           }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width = Math.round((width * MAX_HEIGHT) / height);
-            height = MAX_HEIGHT;
+          ctx.drawImage(img, 0, 0, width, height);
+          return canvas;
+        };
+
+        const MAX_DATA_URL_LEN = 38_000;
+        let optimizedDataUrl = '';
+
+        const primaryCanvas = renderScaled(320, 160, false);
+        if (primaryCanvas) {
+          optimizedDataUrl = primaryCanvas.toDataURL('image/png');
+          if (optimizedDataUrl.length > MAX_DATA_URL_LEN) {
+            const webpCandidate = primaryCanvas.toDataURL('image/webp', 0.85);
+            if (webpCandidate.startsWith('data:image/webp') && webpCandidate.length < optimizedDataUrl.length) {
+              optimizedDataUrl = webpCandidate;
+            }
+          }
+          if (optimizedDataUrl.length > MAX_DATA_URL_LEN) {
+            const smallerCanvas = renderScaled(220, 110, false);
+            if (smallerCanvas) {
+              const smallPng = smallerCanvas.toDataURL('image/png');
+              if (smallPng.length < optimizedDataUrl.length) {
+                optimizedDataUrl = smallPng;
+              }
+            }
+          }
+          if (optimizedDataUrl.length > MAX_DATA_URL_LEN) {
+            const jpegCanvas = renderScaled(240, 120, true);
+            if (jpegCanvas) {
+              optimizedDataUrl = jpegCanvas.toDataURL('image/jpeg', 0.82);
+            }
           }
         }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const optimizedDataUrl = canvas.toDataURL('image/png', 0.9);
+        if (optimizedDataUrl) {
           setCompanyLogoDataUrl(optimizedDataUrl);
           setCompanyLogoFileName(file.name);
           if (onNotify) {
-            onNotify(`Logo "${file.name}" berhasil dioptimasi & siap disimpan.`);
+            onNotify(
+              `Logo "${file.name}" berhasil dioptimasi (${Math.round(optimizedDataUrl.length / 1024)} KB). Klik "Simpan Profil Company" agar tampil di Laptop & HP.`
+            );
           }
         }
       };

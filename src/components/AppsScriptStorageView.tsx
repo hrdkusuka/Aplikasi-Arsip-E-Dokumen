@@ -17,12 +17,14 @@ import {
   GitBranch,
   Layers,
   Terminal,
+  Smartphone,
 } from 'lucide-react';
 import { AppState } from '../types';
 import codeGsRaw from '../../gas/Code.gs?raw';
 import vercelJsonRaw from '../../vercel.json?raw';
 import {
   APPS_SCRIPT_SHEET_BLUEPRINT,
+  buildDeviceSyncShareUrl,
   GasConfig,
   isValidAppsScriptUrl,
   loadStateFromGas,
@@ -513,6 +515,36 @@ git push -u origin main`;
                       Batal
                     </button>
                   </div>
+                )}
+
+                {isValidAppsScriptUrl(urlInput.trim() || gasConfig.webAppUrl) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const shareUrl = buildDeviceSyncShareUrl(
+                        urlInput.trim() || gasConfig.webAppUrl,
+                        tokenInput.trim() || gasConfig.apiToken
+                      );
+                      copyText(
+                        shareUrl,
+                        'mobile-sync-link',
+                        'Link Login HP (Auto-Sinkron Logo & Data)'
+                      );
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 transition-colors cursor-pointer"
+                    title="Buka link ini di HP agar HP otomatis terhubung ke Google Sheets dan menampilkan logo terbaru"
+                  >
+                    {copiedKey === 'mobile-sync-link' ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    ) : (
+                      <Smartphone className="h-3.5 w-3.5 text-blue-700" />
+                    )}
+                    <span>
+                      {copiedKey === 'mobile-sync-link'
+                        ? 'Link HP Tersalin!'
+                        : 'Salin Link Login HP (Auto-Sinkron)'}
+                    </span>
+                  </button>
                 )}
               </div>
 

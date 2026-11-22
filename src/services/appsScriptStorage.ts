@@ -361,9 +361,43 @@ export function isValidAppsScriptUrl(url: string): boolean {
   }
 }
 
+export function buildDeviceSyncShareUrl(webAppUrl: string, apiToken?: string): string {
+  if (typeof window === 'undefined') return '';
+  const url = new URL(window.location.origin + window.location.pathname);
+  if (isValidAppsScriptUrl(webAppUrl)) {
+    url.searchParams.set('gas', webAppUrl.trim());
+    if (apiToken && apiToken.trim()) {
+      url.searchParams.set('gasToken', apiToken.trim());
+    }
+  }
+  return url.toString();
+}
+
 export function getGasConfig(): GasConfig {
   const envUrl = (import.meta.env.VITE_GAS_WEBAPP_URL || '').trim();
   const envToken = (import.meta.env.VITE_GAS_API_TOKEN || '').trim();
+
+  // Auto-pair Apps Script URL from shareable mobile link (?gas=...&gasToken=...)
+  try {
+    if (typeof window !== 'undefined' && window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      const queryGas = (params.get('gas') || '').trim();
+      const queryToken = (params.get('gasToken') || '').trim();
+      if (isValidAppsScriptUrl(queryGas)) {
+        localStorage.setItem(GAS_URL_KEY, queryGas);
+        if (queryToken) {
+          localStorage.setItem(GAS_TOKEN_KEY, queryToken);
+        }
+        params.delete('gas');
+        params.delete('gasToken');
+        const nextQuery = params.toString();
+        const cleanUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
+  } catch {
+    // ignore URL/storage access errors
+  }
 
   try {
     const storedUrl = (localStorage.getItem(GAS_URL_KEY) || '').trim();

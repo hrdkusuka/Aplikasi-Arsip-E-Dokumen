@@ -343,6 +343,27 @@ export default function App() {
       : 'Arsip Dokumen';
   }, [state.companyProfile?.namaPerusahaan]);
 
+  // Sinkronkan Favicon & Apple Touch Icon browser (Laptop & HP) dengan Logo Perusahaan terbaru
+  useEffect(() => {
+    const logoUrl = state.companyProfile?.logoDataUrl?.trim();
+    if (!logoUrl) return;
+    try {
+      const updateLink = (rel: string) => {
+        let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = rel;
+          document.head.appendChild(link);
+        }
+        link.href = logoUrl;
+      };
+      updateLink('icon');
+      updateLink('apple-touch-icon');
+    } catch {
+      // ignore DOM icon update errors
+    }
+  }, [state.companyProfile?.logoDataUrl]);
+
   // Auto-load data riil terbaru dari Google Sheets setiap kali aplikasi dibuka jika Apps Script sudah terhubung
   useEffect(() => {
     if (!isValidAppsScriptUrl(gasConfig.webAppUrl)) {
@@ -397,6 +418,44 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-refresh profil perusahaan, logo, & user dari Google Sheets saat tab HP/browser kembali aktif di halaman login
+  const lastVisibilitySyncRef = useRef<number>(0);
+  useEffect(() => {
+    if (isAuthenticated || !isValidAppsScriptUrl(gasConfig.webAppUrl)) {
+      return;
+    }
+
+    const refreshOnReturn = () => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastVisibilitySyncRef.current < 15_000) return;
+      lastVisibilitySyncRef.current = now;
+
+      loadStateFromGas(gasConfig.webAppUrl, gasConfig.apiToken)
+        .then((res) => {
+          if (!res.success || !res.hasData || !res.state) return;
+          handleHydrateStateFromSheet(res.state);
+          const updated = saveGasConfig({
+            lastSyncedAt: res.updatedAt || new Date().toISOString(),
+            ...(res.spreadsheetUrl ? { spreadsheetUrl: res.spreadsheetUrl } : {}),
+            ...(res.spreadsheetName ? { spreadsheetName: res.spreadsheetName } : {}),
+          });
+          setGasConfig(updated);
+        })
+        .catch(() => {
+          // ignore transient offline errors
+        });
+    };
+
+    window.addEventListener('focus', refreshOnReturn);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    return () => {
+      window.removeEventListener('focus', refreshOnReturn);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, gasConfig.webAppUrl, gasConfig.apiToken]);
 
   // Debounced Auto-Sync ke Google Sheets (Apps Script Web App) saat data berubah
   useEffect(() => {
@@ -1140,6 +1199,62 @@ export default function App() {
     }
   };
 
+  const handleConnectGasFromLogin = async (
+    webAppUrl: string,
+    apiToken?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const cleanUrl = webAppUrl.trim();
+    const cleanToken = (apiToken || '').trim();
+    if (!isValidAppsScriptUrl(cleanUrl)) {
+      return {
+        success: false,
+        message:
+          'URL tidak valid. Pastikan diawali https://script.google.com/macros/s/... dan berakhiran /exec',
+      };
+    }
+
+    setIsReloadingFromSheets(true);
+    try {
+      const res = await loadStateFromGas(cleanUrl, cleanToken);
+      if (res.success && res.hasData && res.state) {
+        const updated = saveGasConfig({
+          webAppUrl: cleanUrl,
+          apiToken: cleanToken,
+          lastSyncedAt: res.updatedAt || new Date().toISOString(),
+          ...(res.spreadsheetUrl ? { spreadsheetUrl: res.spreadsheetUrl } : {}),
+          ...(res.spreadsheetName ? { spreadsheetName: res.spreadsheetName } : {}),
+        });
+        setGasConfig(updated);
+        handleHydrateStateFromSheet(res.state);
+        showToast('Perangkat berhasil dihubungkan & logo/data dimuat dari Google Sheets.');
+        return {
+          success: true,
+          message: 'Berhasil terhubung! Logo, nama perusahaan, dan data akun terbaru telah dimuat.',
+        };
+      }
+      if (res.success && !res.hasData) {
+        const updated = saveGasConfig({
+          webAppUrl: cleanUrl,
+          apiToken: cleanToken,
+          ...(res.spreadsheetUrl ? { spreadsheetUrl: res.spreadsheetUrl } : {}),
+          ...(res.spreadsheetName ? { spreadsheetName: res.spreadsheetName } : {}),
+        });
+        setGasConfig(updated);
+        return {
+          success: true,
+          message:
+            'Terhubung ke Google Sheets, namun spreadsheet belum berisi data. Simpan data dari Laptop terlebih dahulu.',
+        };
+      }
+      return {
+        success: false,
+        message: res.error || 'Gagal memuat data dari URL Google Apps Script tersebut.',
+      };
+    } finally {
+      setIsReloadingFromSheets(false);
+    }
+  };
+
   const handleClearSampleDataExceptUsers = () => {
     if (!isSuperAdmin) {
       showToast(
@@ -1272,7 +1387,7 @@ export default function App() {
     return (
       <>
         {toastMessage && (
-          <div className="fixed right-6 bottom-6 z-50 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-medium text-white shadow-lg">
+          <div className="fixed right-6 bottom-6 z-[70] flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-medium text-white shadow-lg">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>
@@ -1281,6 +1396,10 @@ export default function App() {
           state={state}
           onLoginSuccess={handleLandingLoginSuccess}
           onResetPassword={handleResetUserPassword}
+          isGasConnected={isValidAppsScriptUrl(gasConfig.webAppUrl)}
+          isSyncingFromSheet={isReloadingFromSheets}
+          onRefreshFromSheets={handleReloadFromGoogleSheets}
+          onConnectGasFromLogin={handleConnectGasFromLogin}
         />
       </>
     );
