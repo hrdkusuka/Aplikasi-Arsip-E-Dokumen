@@ -11,6 +11,7 @@ import {
   DocIMB,
   DocSLO,
   DocUjiTimbangan,
+  UserAccount,
 } from '../types';
 import { formatIndonesianDate, evaluateDateDeadline } from './archiveHelpers';
 
@@ -23,7 +24,8 @@ export type ReportDocType =
   | 'TANAH'
   | 'IMB'
   | 'SLO'
-  | 'TIMBANGAN';
+  | 'TIMBANGAN'
+  | 'USERS';
 
 export interface ReportFilterOptions {
   docType: ReportDocType;
@@ -283,13 +285,27 @@ export function buildTimbanganRows(state: AppState, docs: DocUjiTimbangan[]) {
   });
 }
 
+export function buildUserRows(users: UserAccount[]) {
+  return users.map((u, index) => ({
+    No: index + 1,
+    Username: u.username,
+    'Nama Lengkap': u.namaLengkap,
+    Email: u.email || '-',
+    'Role / Jabatan': u.role,
+    'Level Otorisasi': u.level,
+    'Status Akun': u.aktif ? 'Aktif' : 'Nonaktif',
+    'Login Terakhir': u.lastLogin || '-',
+  }));
+}
+
 // Helper to build elegant formatted Excel worksheets matching PDF styling
 function createFormattedWorksheet(
   companyTitle: string,
   sectionName: string,
   timestampStr: string,
   userName: string,
-  rows: Record<string, any>[]
+  rows: Record<string, any>[],
+  unitLabel = 'Dokumen'
 ): XLSX.WorkSheet {
   const aoa: (string | number)[][] = [];
 
@@ -299,9 +315,9 @@ function createFormattedWorksheet(
   // Header 2: Subtitle
   aoa.push([`LAPORAN REKAPITULASI — ${sectionName.toUpperCase()}`]);
 
-  // Header 3: Metadata
+  // Header 3: Metadata (Nama User Penarik Laporan)
   aoa.push([
-    `Tanggal Ekspor: ${timestampStr}   |   Dicetak oleh: ${userName}   |   Total Data: ${rows.length} Dokumen`,
+    `Tanggal Ekspor: ${timestampStr}   |   Dicetak oleh (User): ${userName}   |   Total Data: ${rows.length} ${unitLabel}`,
   ]);
 
   // Header 4: Blank Spacer Row
@@ -334,12 +350,13 @@ function createFormattedWorksheet(
     );
   });
 
-  // Bottom Summary Row
+  // Bottom Summary & Signature Row
   aoa.push([]);
   const summaryRow: (string | number)[] = ['TOTAL'];
-  summaryRow.push(`${rows.length} Dokumen Terdaftar`);
+  summaryRow.push(`${rows.length} ${unitLabel} Terdaftar`);
   for (let i = 2; i < headers.length; i++) summaryRow.push('');
   aoa.push(summaryRow);
+  aoa.push([`Dicetak oleh (User): ${userName}   |   Tanggal Cetak: ${timestampStr}`]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
 
@@ -386,6 +403,7 @@ function createSummaryWorksheet(
     k3: number;
     slo: number;
     timbangan: number;
+    users: number;
   }
 ): XLSX.WorkSheet {
   const total =
@@ -399,10 +417,10 @@ function createSummaryWorksheet(
     counts.timbangan;
   const aoa: (string | number)[][] = [
     [companyName.toUpperCase()],
-    ['LAPORAN REKAPITULASI KESELURUHAN DOKUMEN ARSIP'],
-    [`Tanggal Ekspor: ${timestampStr}   |   Dicetak oleh: ${userName}   |   Total Terarsip: ${total} Dokumen`],
+    ['LAPORAN REKAPITULASI KESELURUHAN DOKUMEN ARSIP & PENGGUNA'],
+    [`Tanggal Ekspor: ${timestampStr}   |   Dicetak oleh (User): ${userName}   |   Total Terarsip: ${total} Dokumen`],
     [],
-    ['No', 'Kategori Dokumen Arsip', 'Jumlah Dokumen', 'Status Kelengkapan', 'Keterangan'],
+    ['No', 'Kategori Data / Arsip', 'Jumlah Data', 'Status Kelengkapan', 'Keterangan'],
     [1, 'Dokumen E-SPPT', counts.esppt, 'Tersimpan & Terindeks', 'Surat Pemberitahuan Pajak Terhutang'],
     [2, 'Bukti Bayar PBB (E-NOP)', counts.enop, 'Tersimpan & Terindeks', 'Bukti Pelunasan Pajak Bumi & Bangunan'],
     [3, 'Dokumen E-IMB', counts.imb, 'Tersimpan & Terindeks', 'Izin Mendirikan Bangunan'],
@@ -411,8 +429,9 @@ function createSummaryWorksheet(
     [6, 'Sertifikat K3', counts.k3, 'Tersimpan & Terindeks', 'Sertifikasi Keselamatan & Kesehatan Kerja'],
     [7, 'Sertifikat Laik Operasi (SLO)', counts.slo, 'Tersimpan & Terindeks', 'Sertifikasi Kelaikan Operasi Genset & Listrik'],
     [8, 'Sertifikat Uji Timbangan', counts.timbangan, 'Tersimpan & Terindeks', 'Pengujian Alat Ukur, Takar, Timbang & Perlengkapannya (UTTP)'],
+    [9, 'Daftar Pengguna (Users & Roles)', counts.users, 'Aktif & Terdaftar', 'Akun pengguna sistem & tingkat otorisasi'],
     [],
-    ['TOTAL', 'TOTAL KESELURUHAN DOKUMEN', total, '100% Terverifikasi', 'Data Tersinkronisasi Lengkap'],
+    ['TOTAL', 'TOTAL KESELURUHAN DOKUMEN ARSIP', total, '100% Terverifikasi', `Dicetak oleh: ${userName}`],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -423,10 +442,10 @@ function createSummaryWorksheet(
   ];
   ws['!cols'] = [
     { wch: 8 },
-    { wch: 34 },
+    { wch: 36 },
     { wch: 18 },
     { wch: 25 },
-    { wch: 45 },
+    { wch: 48 },
   ];
   return ws;
 }
@@ -443,6 +462,7 @@ export function exportToExcel(
     imb: DocIMB[];
     slo: DocSLO[];
     timbangan: DocUjiTimbangan[];
+    users?: UserAccount[];
   }
 ) {
   const wb = XLSX.utils.book_new();
@@ -453,10 +473,14 @@ export function exportToExcel(
     year: 'numeric',
   });
 
-  const currentUser = state.users.find((u) => u.id === state.currentUserId);
-  const userName = `${currentUser?.namaLengkap || 'Administrator'} (${currentUser?.role || '-'})`;
+  const currentUser =
+    state.users.find((u) => u.id === state.currentUserId) || state.users[0];
+  const userName = currentUser
+    ? `${currentUser.namaLengkap} (@${currentUser.username} · ${currentUser.role})`
+    : 'Administrator';
   const companyTitle =
     state.companyProfile.namaPerusahaan || 'SISTEM MANAJEMEN ARSIP DOKUMEN TERPADU';
+  const exportUsers = filteredData.users ?? state.users;
 
   // 1. If exporting ALL, add Executive Summary Sheet first
   if (docType === 'ALL') {
@@ -469,6 +493,7 @@ export function exportToExcel(
       k3: filteredData.k3.length,
       slo: filteredData.slo.length,
       timbangan: filteredData.timbangan.length,
+      users: exportUsers.length,
     });
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Ringkasan Laporan');
   }
@@ -577,6 +602,20 @@ export function exportToExcel(
     XLSX.utils.book_append_sheet(wb, ws, 'Uji Timbangan');
   }
 
+  // 10. Sheet Daftar Pengguna (Users)
+  if (docType === 'ALL' || docType === 'USERS') {
+    const rows = buildUserRows(exportUsers);
+    const ws = createFormattedWorksheet(
+      companyTitle,
+      'Daftar Pengguna (Users & Roles)',
+      timestampStr,
+      userName,
+      rows,
+      'Pengguna'
+    );
+    XLSX.utils.book_append_sheet(wb, ws, 'Daftar Pengguna');
+  }
+
   const fileLabel = docType === 'ALL' ? 'Semua_Dokumen' : docType;
   XLSX.writeFile(wb, `Laporan_Arsip_Dokumen_${fileLabel}_${timestamp}.xlsx`);
 }
@@ -593,6 +632,7 @@ export function exportToPDF(
     imb: DocIMB[];
     slo: DocSLO[];
     timbangan: DocUjiTimbangan[];
+    users?: UserAccount[];
   }
 ) {
   const doc = new jsPDF({
@@ -607,7 +647,12 @@ export function exportToPDF(
     year: 'numeric',
   });
 
-  const currentUser = state.users.find((u) => u.id === state.currentUserId);
+  const currentUser =
+    state.users.find((u) => u.id === state.currentUserId) || state.users[0];
+  const userName = currentUser
+    ? `${currentUser.namaLengkap} (@${currentUser.username} · ${currentUser.role})`
+    : 'Administrator';
+  const exportUsers = filteredData.users ?? state.users;
 
   const companyTitle = (
     state.companyProfile?.namaPerusahaan || 'SISTEM MANAJEMEN ARSIP DOKUMEN TERPADU'
@@ -629,7 +674,7 @@ export function exportToPDF(
     doc.setTextColor(71, 85, 105);
     doc.text(title, 14, startY + 10);
     doc.text(
-      `Tanggal Cetak: ${timestampStr}  |  Dicetak oleh: ${currentUser?.namaLengkap || 'Administrator'} (${currentUser?.role || '-'})`,
+      `Tanggal Cetak: ${timestampStr}  |  Dicetak oleh (User): ${userName}`,
       14,
       startY + 15
     );
@@ -642,7 +687,11 @@ export function exportToPDF(
 
   let currentY = addReportHeader(
     `Rekapitulasi Laporan Arsip Dokumen — Kategori: ${
-      docType === 'ALL' ? 'Seluruh Dokumen' : docType
+      docType === 'ALL'
+        ? 'Seluruh Dokumen & Pengguna'
+        : docType === 'USERS'
+        ? 'Daftar Pengguna (Users & Roles)'
+        : docType
     }`,
     15
   );
@@ -959,6 +1008,51 @@ export function exportToPDF(
       ],
       rows
     );
+  }
+
+  if (docType === 'ALL' || docType === 'USERS') {
+    const rows = exportUsers.map((u, idx) => [
+      idx + 1,
+      u.username,
+      u.namaLengkap,
+      u.email || '-',
+      u.role,
+      u.level,
+      u.aktif ? 'Aktif' : 'Nonaktif',
+      u.lastLogin || '-',
+    ]);
+    renderSectionTable(
+      `9. Daftar Pengguna Sistem / Users & Roles (${exportUsers.length} Akun)`,
+      [
+        'No',
+        'Username',
+        'Nama Lengkap',
+        'Email',
+        'Role / Jabatan',
+        'Level Otorisasi',
+        'Status',
+        'Login Terakhir',
+      ],
+      rows
+    );
+  }
+
+  // Footer resmi di setiap halaman PDF berisi Nama User & Nomor Halaman
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(14, 198, 283, 198);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `${companyTitle}  |  Dicetak oleh (User): ${userName}  |  ${timestampStr}`,
+      14,
+      203
+    );
+    doc.text(`Halaman ${p} dari ${totalPages}`, 283, 203, { align: 'right' });
   }
 
   const fileLabel = docType === 'ALL' ? 'Semua_Dokumen' : docType;

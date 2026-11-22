@@ -1,12 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Printer,
   FileDown,
   CheckSquare,
-  Square,
   Search,
-  Filter,
   Layers,
   ChevronLeft,
   ChevronRight,
@@ -15,12 +13,15 @@ import {
   AlignCenter,
   AlignLeft,
   Sparkles,
-  Check,
-  ExternalLink,
+  AlertCircle,
+  FileText,
 } from 'lucide-react';
 import { AppState } from '../types';
 import {
   exportLabelsToPDF,
+  printLabelsDirectly,
+  createLabelsPDFBlobUrl,
+  safeLabelString,
   LabelDocumentItem,
   PaperSize,
   LabelExportConfig,
@@ -41,84 +42,89 @@ function extractAllDocumentLabels(state: AppState): LabelDocumentItem[] {
   const items: LabelDocumentItem[] = [];
 
   const getLoc = (locId: string) =>
-    state.masterLocations.find((l) => l.id === locId)?.namaLokasi || 'Arsip Utama';
+    safeLabelString(
+      (state.masterLocations || []).find((l) => l.id === locId)?.namaLokasi
+    ) || 'Arsip Utama';
 
   // 1. E-SPPT
-  state.docsESPPT.forEach((d) => {
+  (state.docsESPPT || []).forEach((d) => {
     items.push({
       id: `esppt-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'E-SPPT',
-      primaryTitle: `NOP ${d.nop} (${d.tahun})`,
-      subTitle: `WP: ${d.namaWajibPajak || d.namaAlamatWajibPajak || '-'}`,
+      primaryTitle: `NOP ${safeLabelString(d.nop) || '-'} (${safeLabelString(d.tahun) || '-'})`,
+      subTitle: `WP: ${safeLabelString(d.namaWajibPajak || d.namaAlamatWajibPajak) || '-'}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `${d.letakObjekPajak}`,
+      extraInfo: safeLabelString(d.letakObjekPajak),
     });
   });
 
   // 2. Bukti Bayar PBB
-  state.docsENOP.forEach((d) => {
-    const st = state.masterStatuses.find((s) => s.id === d.statusBayarId)?.namaStatus || '-';
+  (state.docsENOP || []).forEach((d) => {
+    const st =
+      safeLabelString(
+        (state.masterStatuses || []).find((s) => s.id === d.statusBayarId)?.namaStatus
+      ) || '-';
     items.push({
       id: `enop-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'Bukti Bayar PBB',
-      primaryTitle: `NOP ${d.nop} (${d.tahunPajak})`,
-      subTitle: `WP: ${d.namaWajibPajak || d.namaNop || '-'}`,
+      primaryTitle: `NOP ${safeLabelString(d.nop) || '-'} (${safeLabelString(d.tahunPajak) || '-'})`,
+      subTitle: `WP: ${safeLabelString(d.namaWajibPajak || d.namaNop) || '-'}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `${d.kotaKabupaten} · Status: ${st}`,
+      extraInfo: `${safeLabelString(d.kotaKabupaten)} · Status: ${st}`,
     });
   });
 
   // 3. E-IMB
-  state.docsIMB.forEach((d) => {
+  (state.docsIMB || []).forEach((d) => {
     items.push({
       id: `imb-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'E-IMB',
-      primaryTitle: `SK IMB No. ${d.noKeputusan} (${d.tahun})`,
-      subTitle: `Atas Nama: ${d.atasNama}`,
+      primaryTitle: `SK IMB No. ${safeLabelString(d.noKeputusan) || '-'} (${safeLabelString(d.tahun) || '-'})`,
+      subTitle: `Atas Nama: ${safeLabelString(d.atasNama) || '-'}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `${d.bangunanInduk} · ${d.kota}`,
+      extraInfo: `${safeLabelString(d.bangunanInduk)} · ${safeLabelString(d.kota)}`,
     });
   });
 
   // 4. E-Sertifikat Tanah
-  state.docsTanah.forEach((d) => {
+  (state.docsTanah || []).forEach((d) => {
     items.push({
       id: `tanah-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'E-Sertifikat Tanah',
-      primaryTitle: `${d.jenisHak} No. ${d.nomorSertifikat} (NIB: ${d.nib})`,
-      subTitle: `Pemegang: ${d.namaPemegangHak}`,
+      primaryTitle: `${safeLabelString(d.jenisHak)} No. ${safeLabelString(d.nomorSertifikat)} (NIB: ${safeLabelString(d.nib) || '-'})`,
+      subTitle: `Pemegang: ${safeLabelString(d.namaPemegangHak) || '-'}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `${d.desaKelurahan}, ${d.kotaKabupaten}`,
+      extraInfo: `${safeLabelString(d.desaKelurahan)}, ${safeLabelString(d.kotaKabupaten)}`,
     });
   });
 
   // 5. Sertifikat Merk
-  state.docsMerk.forEach((d) => {
+  (state.docsMerk || []).forEach((d) => {
     items.push({
       id: `merk-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'Sertifikat Merk',
-      primaryTitle: `Reg: ${d.noPendaftaran} — ${d.etiketMerk}`,
-      subTitle: `Pemilik: ${d.nama}`,
+      primaryTitle: `Reg: ${safeLabelString(d.noPendaftaran)} - ${safeLabelString(d.etiketMerk)}`,
+      subTitle: `Pemilik: ${safeLabelString(d.nama) || '-'}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `${d.kelasBarangJasa}`,
+      extraInfo: safeLabelString(d.kelasBarangJasa),
     });
   });
 
   // 6. Sertifikat K3
-  state.docsK3.forEach((d) => {
+  (state.docsK3 || []).forEach((d) => {
     items.push({
       id: `k3-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'Sertifikat K3',
-      primaryTitle: `${d.jenisObjekK3} — ${d.merk} ${d.type}`,
-      subTitle: `${d.namaPerusahaan}`,
+      primaryTitle: `${safeLabelString(d.jenisObjekK3)} - ${safeLabelString(d.merk)} ${safeLabelString(d.type)}`.trim(),
+      subTitle: safeLabelString(d.namaPerusahaan) || '-',
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `SN: ${d.noSeri} · Unit: ${d.lokasiUnit}`,
+      extraInfo: `SN: ${safeLabelString(d.noSeri)} · Unit: ${safeLabelString(d.lokasiUnit)}`,
     });
   });
 
@@ -126,12 +132,12 @@ function extractAllDocumentLabels(state: AppState): LabelDocumentItem[] {
   (state.docsSLO || []).forEach((d) => {
     items.push({
       id: `slo-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'Sertifikat Laik Operasi',
-      primaryTitle: `SLO: ${d.noSlo} (${d.jenisSlo})`,
-      subTitle: `${d.namaPerusahaan} · ${d.merekPeralatan}`,
+      primaryTitle: `SLO: ${safeLabelString(d.noSlo)} (${safeLabelString(d.jenisSlo)})`,
+      subTitle: `${safeLabelString(d.namaPerusahaan)} · ${safeLabelString(d.merekPeralatan)}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `${d.kapasitasKva} kVA · ${d.lokasiInstalasi}`,
+      extraInfo: `${safeLabelString(d.kapasitasKva)} kVA · ${safeLabelString(d.lokasiInstalasi)}`,
     });
   });
 
@@ -139,12 +145,12 @@ function extractAllDocumentLabels(state: AppState): LabelDocumentItem[] {
   (state.docsTimbangan || []).forEach((d) => {
     items.push({
       id: `tmb-${d.id}`,
-      noArsip: d.noArsip,
+      noArsip: safeLabelString(d.noArsip) || '-',
       category: 'Uji Timbangan',
-      primaryTitle: `${d.namaAlatUkur} (${d.jenisTimbangan})`,
-      subTitle: `Surat: ${d.nomorSuratPengujian} · ${d.merekPabrikBuatan}`,
+      primaryTitle: `${safeLabelString(d.namaAlatUkur)} (${safeLabelString(d.jenisTimbangan)})`,
+      subTitle: `Surat: ${safeLabelString(d.nomorSuratPengujian)} · ${safeLabelString(d.merekPabrikBuatan)}`,
       locationName: getLoc(d.arsipDokumenId),
-      extraInfo: `Maks: ${d.kapasitasMaksimumKg} kg · ${d.pemilikPemakai}`,
+      extraInfo: `Maks: ${safeLabelString(d.kapasitasMaksimumKg)} kg · ${safeLabelString(d.pemilikPemakai)}`,
     });
   });
 
@@ -157,8 +163,6 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
   state,
   onNotify,
 }) => {
-  if (!isOpen) return null;
-
   const allLabels = useMemo(() => extractAllDocumentLabels(state), [state]);
 
   // Filters & Layout Settings
@@ -168,18 +172,50 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
   const [density, setDensity] = useState<'max' | 'standard'>('max');
   const [showCutGuides, setShowCutGuides] = useState<boolean>(true);
-  const [secondLineOption, setSecondLineOption] = useState<SecondLineOption>('kategori_keterangan');
+  const [secondLineOption, setSecondLineOption] =
+    useState<SecondLineOption>('kategori_keterangan');
   const [alignment, setAlignment] = useState<LabelAlignment>('center');
   const [fontScale, setFontScale] = useState<'large' | 'extra-large' | 'standard'>('extra-large');
-  const [viewTab, setViewTab] = useState<'preview' | 'checklist'>('preview');
-  const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<'preview' | 'checklist' | 'pdf'>('preview');
+  const [statusBanner, setStatusBanner] = useState<{
+    type: 'success' | 'info' | 'error';
+    message: string;
+  } | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
 
   // Selected item IDs (default to all)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    return new Set(allLabels.map((item) => item.id));
-  });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(allLabels.map((item) => item.id))
+  );
 
   const [activeSheetPage, setActiveSheetPage] = useState<number>(0);
+
+  // Keep selectedIds populated when modal opens or new data arrives from Google Sheets
+  useEffect(() => {
+    if (isOpen && allLabels.length > 0) {
+      setSelectedIds((prev) => {
+        const validIds = new Set(allLabels.map((item) => item.id));
+        const kept = new Set<string>();
+        prev.forEach((id) => {
+          if (validIds.has(id)) kept.add(id);
+        });
+        return kept.size > 0 ? kept : validIds;
+      });
+    }
+  }, [isOpen, allLabels]);
+
+  // Revoke generated PDF Blob URL on change / unmount
+  useEffect(() => {
+    return () => {
+      if (pdfPreview?.url) {
+        try {
+          URL.revokeObjectURL(pdfPreview.url);
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [pdfPreview]);
 
   // Filtered labels based on search & category
   const filteredLabels = useMemo(() => {
@@ -189,11 +225,11 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
       if (selectedLocation !== 'ALL' && item.locationName !== selectedLocation) return false;
       if (!q) return true;
       return (
-        item.noArsip.toLowerCase().includes(q) ||
-        item.primaryTitle.toLowerCase().includes(q) ||
-        item.subTitle.toLowerCase().includes(q) ||
-        item.locationName.toLowerCase().includes(q) ||
-        (item.extraInfo && item.extraInfo.toLowerCase().includes(q))
+        safeLabelString(item.noArsip).toLowerCase().includes(q) ||
+        safeLabelString(item.primaryTitle).toLowerCase().includes(q) ||
+        safeLabelString(item.subTitle).toLowerCase().includes(q) ||
+        safeLabelString(item.locationName).toLowerCase().includes(q) ||
+        safeLabelString(item.extraInfo).toLowerCase().includes(q)
       );
     });
   }, [allLabels, selectedCategory, selectedLocation, searchQuery]);
@@ -213,11 +249,38 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
   const labelsPerSheet = rowsPerSheet * 2;
   const totalSheets = Math.max(1, Math.ceil(labelsToPrint.length / labelsPerSheet));
 
+  // Clamp activeSheetPage if filters reduce totalSheets
+  useEffect(() => {
+    if (activeSheetPage >= totalSheets) {
+      setActiveSheetPage(Math.max(0, totalSheets - 1));
+    }
+  }, [activeSheetPage, totalSheets]);
+
   // Current sheet page slice
   const currentPageLabels = useMemo(() => {
     const start = activeSheetPage * labelsPerSheet;
     return labelsToPrint.slice(start, start + labelsPerSheet);
   }, [labelsToPrint, activeSheetPage, labelsPerSheet]);
+
+  if (!isOpen) return null;
+
+  const getCurrentConfig = (): LabelExportConfig => ({
+    paperSize,
+    density,
+    showCutGuides,
+    secondLineOption,
+    alignment,
+    fontScale,
+  });
+
+  const getEffectiveItems = (): LabelDocumentItem[] => {
+    if (labelsToPrint.length > 0) return labelsToPrint;
+    if (filteredLabels.length > 0) {
+      setSelectedIds(new Set(filteredLabels.map((i) => i.id)));
+      return filteredLabels;
+    }
+    return [];
+  };
 
   const handleSelectAll = () => {
     setSelectedIds(new Set(filteredLabels.map((i) => i.id)));
@@ -239,65 +302,110 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
     });
   };
 
-  // Main Print Action: Automatically downloads vector PDF AND invokes browser print
-  const handlePrintNow = () => {
-    let items = labelsToPrint;
-    if (items.length === 0) {
-      items = filteredLabels;
-      setSelectedIds(new Set(filteredLabels.map((i) => i.id)));
-    }
-
-    if (items.length === 0) {
-      onNotify('Tidak ada dokumen yang dipilih untuk dicetak.');
-      return;
-    }
-
-    const config: LabelExportConfig = {
-      paperSize,
-      density,
-      showCutGuides,
-      secondLineOption,
-      alignment,
-      fontScale,
-    };
-
-    // 1. Immediately generate & download PDF (100% reliable in any browser/iframe)
-    exportLabelsToPDF(items, config);
-
-    // 2. Also try window.print() (works when opened directly in a new window/tab)
+  const buildPdfPreviewLink = (items: LabelDocumentItem[], config: LabelExportConfig) => {
     try {
-      window.focus();
-      window.print();
+      const generated = createLabelsPDFBlobUrl(items, config);
+      if (generated) {
+        setPdfPreview((prev) => {
+          if (prev?.url) {
+            try {
+              URL.revokeObjectURL(prev.url);
+            } catch {
+              // ignore
+            }
+          }
+          return generated;
+        });
+      }
+      return generated;
     } catch {
-      // Ignored if browser blocks dialog inside iframe
+      return null;
     }
-
-    const successMsg = `File PDF Label (${items.length} label, 3x8 cm) telah berhasil diunduh ke folder unduhan browser Anda. Siap dicetak langsung ke printer!`;
-    setDownloadSuccessMessage(successMsg);
-    onNotify(successMsg);
   };
 
-  // Pure PDF export
-  const handleExportPDF = () => {
-    const items = labelsToPrint.length > 0 ? labelsToPrint : filteredLabels;
+  // Direct Print Action: Opens native OS/browser Printer Dialog cleanly via dedicated hidden print iframe
+  const handlePrintNow = () => {
+    const items = getEffectiveItems();
     if (items.length === 0) {
-      onNotify('Silakan pilih minimal 1 dokumen untuk dicetak labelnya.');
+      const msg = 'Tidak ada dokumen yang tersedia untuk dicetak labelnya.';
+      setStatusBanner({ type: 'error', message: msg });
+      onNotify(msg);
       return;
     }
 
-    const config: LabelExportConfig = {
-      paperSize,
-      density,
-      showCutGuides,
-      secondLineOption,
-      alignment,
-      fontScale,
-    };
+    const config = getCurrentConfig();
+    const sheetsCount = Math.max(1, Math.ceil(items.length / labelsPerSheet));
 
-    exportLabelsToPDF(items, config);
-    const msg = `Berhasil mengunduh PDF untuk ${items.length} label ukuran 3x8 cm (${totalSheets} lembar ${paperSize}).`;
-    setDownloadSuccessMessage(msg);
-    onNotify(msg);
+    // Prepare PDF preview blob in background so user also has instant PDF viewer fallback if needed
+    buildPdfPreviewLink(items, config);
+
+    const result = printLabelsDirectly(items, config, (dialogOpened) => {
+      if (dialogOpened) {
+        const okMsg = `Dialog printer dibuka untuk ${items.length} label (3×8 cm, ${sheetsCount} lembar ${paperSize}). Pastikan skala cetak = 100% / Actual Size.`;
+        setStatusBanner({ type: 'success', message: okMsg });
+        onNotify(okMsg);
+      } else {
+        // Fallback notice if embedded iframe preview blocks native print dialog
+        const fallbackMsg =
+          'Browser/jendela pratinjau memblokir dialog printer langsung. Silakan klik ikon Printer di Pratinjau PDF di bawah atau klik "Unduh PDF Saja" untuk mencetak dari perangkat Anda.';
+        setStatusBanner({ type: 'info', message: fallbackMsg });
+        setViewTab('pdf');
+        onNotify(fallbackMsg);
+      }
+    });
+
+    if (!result.triggered) {
+      const errMsg =
+        result.error ||
+        'Gagal membuka dialog printer langsung. Gunakan Pratinjau PDF atau tombol Unduh PDF Saja.';
+      setStatusBanner({ type: 'error', message: errMsg });
+      setViewTab('pdf');
+      onNotify(errMsg);
+    } else if (result.dialogDetected) {
+      const okMsg = `Dialog printer telah dibuka untuk ${items.length} label (3×8 cm, ${sheetsCount} lembar ${paperSize}).`;
+      setStatusBanner({ type: 'success', message: okMsg });
+      onNotify(okMsg);
+    }
+  };
+
+  // Pure PDF download
+  const handleExportPDF = () => {
+    const items = getEffectiveItems();
+    if (items.length === 0) {
+      const msg = 'Silakan pilih minimal 1 dokumen untuk mengunduh label PDF.';
+      setStatusBanner({ type: 'error', message: msg });
+      onNotify(msg);
+      return;
+    }
+
+    const config = getCurrentConfig();
+    const sheetsCount = Math.max(1, Math.ceil(items.length / labelsPerSheet));
+
+    // Create downloadable Blob URL too (gives manual click link if browser blocks auto-download)
+    buildPdfPreviewLink(items, config);
+
+    const result = exportLabelsToPDF(items, config);
+    if (result.success) {
+      const msg = `Berhasil mengunduh ${result.fileName || 'PDF Label'} (${items.length} label 3×8 cm, ${sheetsCount} lembar ${paperSize}).`;
+      setStatusBanner({ type: 'success', message: msg });
+      onNotify(msg);
+    } else {
+      const errMsg = `Gagal mengunduh PDF label: ${result.error || 'Kesalahan tidak diketahui.'}`;
+      setStatusBanner({ type: 'error', message: errMsg });
+      onNotify(errMsg);
+    }
+  };
+
+  const handleOpenPdfViewerTab = () => {
+    const items = getEffectiveItems();
+    if (items.length === 0) {
+      const msg = 'Tidak ada dokumen untuk ditampilkan di pratinjau PDF.';
+      setStatusBanner({ type: 'error', message: msg });
+      onNotify(msg);
+      return;
+    }
+    buildPdfPreviewLink(items, getCurrentConfig());
+    setViewTab('pdf');
   };
 
   return (
@@ -334,20 +442,48 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
           </button>
         </div>
 
-        {/* Success Banner if user clicked Print */}
-        {downloadSuccessMessage && (
-          <div className="shrink-0 flex items-center justify-between bg-emerald-50 border-b border-emerald-200 px-6 py-2.5 text-xs text-emerald-900">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{downloadSuccessMessage}</span>
+        {/* Status Banner (Success / Info / Error + Direct Download Link) */}
+        {statusBanner && (
+          <div
+            className={`shrink-0 flex flex-wrap items-center justify-between gap-2 border-b px-6 py-2.5 text-xs ${
+              statusBanner.type === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-900'
+                : statusBanner.type === 'info'
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {statusBanner.type === 'error' ? (
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              ) : (
+                <CheckCircle2
+                  className={`h-4 w-4 shrink-0 ${
+                    statusBanner.type === 'info' ? 'text-amber-600' : 'text-emerald-600'
+                  }`}
+                />
+              )}
+              <span className="font-medium">{statusBanner.message}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setDownloadSuccessMessage(null)}
-              className="text-emerald-700 hover:text-emerald-900 text-xs font-semibold ml-4 cursor-pointer"
-            >
-              ✕ Tutup
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {pdfPreview && (
+                <a
+                  href={pdfPreview.url}
+                  download={pdfPreview.fileName}
+                  className="inline-flex items-center gap-1 rounded bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-50"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  Simpan File PDF
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setStatusBanner(null)}
+                className="text-xs font-semibold opacity-75 hover:opacity-100 cursor-pointer"
+              >
+                ✕ Tutup
+              </button>
+            </div>
           </div>
         )}
 
@@ -563,6 +699,18 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
                 <CheckSquare className="h-3.5 w-3.5" />
                 Pilih Dokumen ({labelsToPrint.length}/{filteredLabels.length})
               </button>
+              <button
+                type="button"
+                onClick={handleOpenPdfViewerTab}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-colors cursor-pointer ${
+                  viewTab === 'pdf'
+                    ? 'bg-blue-700 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Pratinjau PDF
+              </button>
             </div>
 
             <span className="text-xs text-slate-500">
@@ -736,6 +884,46 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
                 </div>
               )}
             </div>
+          ) : viewTab === 'pdf' ? (
+            /* TAB 3: INTERACTIVE EMBEDDED PDF VIEWER (Built-in Print & Download Toolbar) */
+            <div className="flex h-full min-h-[480px] flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs">
+                <span className="font-semibold text-slate-800">
+                  Pratinjau Dokumen PDF Label 3×8 cm ({paperSize}) — Gunakan ikon Printer di toolbar PDF atau tombol Unduh PDF
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenPdfViewerTab}
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Muat Ulang PDF
+                  </button>
+                  {pdfPreview && (
+                    <a
+                      href={pdfPreview.url}
+                      download={pdfPreview.fileName}
+                      className="inline-flex items-center gap-1 rounded bg-blue-700 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-800"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      Unduh File PDF
+                    </a>
+                  )}
+                </div>
+              </div>
+              {pdfPreview ? (
+                <iframe
+                  src={pdfPreview.url}
+                  title="Pratinjau PDF Label Arsip"
+                  className="h-[62vh] w-full flex-1 border-0 bg-slate-100"
+                />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center p-10 text-center text-xs text-slate-500">
+                  <FileText className="h-10 w-10 text-slate-400 mb-2" />
+                  <p>Belum ada dokumen PDF yang dibuat. Pilih dokumen lalu klik &quot;Muat Ulang PDF&quot;.</p>
+                </div>
+              )}
+            </div>
           ) : (
             /* TAB 2: DETAILED CHECKLIST TABLE */
             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
@@ -863,123 +1051,13 @@ export const ArchiveLabelModal: React.FC<ArchiveLabelModalProps> = ({
               type="button"
               onClick={handlePrintNow}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-800 active:bg-blue-900 shadow-sm cursor-pointer transition-all"
-              title="Cetak langsung: mengunduh file cetak PDF berpresisi tinggi dan memanggil dialog cetak"
+              title="Buka dialog media printer browser secara langsung untuk mencetak label 3x8 cm"
             >
               <Printer className="h-4 w-4" />
               Cetak Sekarang (Print)
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Hidden Printable Container optimized exclusively for Browser window.print() */}
-      <div id="printable-label-sheets" className="hidden print:block">
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-            @media print {
-              body * {
-                visibility: hidden !important;
-              }
-              #printable-label-sheets, #printable-label-sheets * {
-                visibility: visible !important;
-              }
-              #printable-label-sheets {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                background: white !important;
-              }
-              @page {
-                size: ${
-                  paperSize === 'F4'
-                    ? '215mm 330mm'
-                    : paperSize === 'Letter'
-                    ? 'letter portrait'
-                    : 'A4 portrait'
-                };
-                margin: 0;
-              }
-              .print-sheet-page {
-                page-break-after: always;
-                box-sizing: border-box;
-                width: ${paperSize === 'F4' ? '215mm' : paperSize === 'Letter' ? '216mm' : '210mm'};
-                height: ${paperSize === 'F4' ? '330mm' : paperSize === 'Letter' ? '279mm' : '297mm'};
-                padding: 10mm 15mm;
-                display: grid;
-                grid-template-columns: 80mm 80mm;
-                grid-gap: 2mm 10mm;
-                justify-content: center;
-                align-content: center;
-              }
-              .print-label-item {
-                width: 80mm;
-                height: 30mm;
-                box-sizing: border-box;
-                border: 0.5pt ${showCutGuides ? 'dashed #94a3b8' : 'solid #cbd5e1'};
-                border-radius: 2mm;
-                padding: 2.5mm 3.5mm;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: ${alignment === 'center' ? 'center' : 'flex-start'};
-                text-align: ${alignment === 'center' ? 'center' : 'left'};
-              }
-            }
-          `,
-          }}
-        />
-
-        {Array.from({ length: totalSheets }).map((_, sheetIdx) => {
-          const sheetItems = (labelsToPrint.length > 0 ? labelsToPrint : filteredLabels).slice(
-            sheetIdx * labelsPerSheet,
-            (sheetIdx + 1) * labelsPerSheet
-          );
-          return (
-            <div key={sheetIdx} className="print-sheet-page">
-              {sheetItems.map((item) => {
-                const line2 = getSecondLineText(item, secondLineOption);
-                const printFontSize =
-                  fontScale === 'extra-large' ? '18pt' : fontScale === 'large' ? '16pt' : '14pt';
-                return (
-                  <div key={item.id} className="print-label-item">
-                    {/* Baris 1: No Arsip Saja */}
-                    <div
-                      style={{
-                        fontFamily: 'monospace, "Courier New", Courier',
-                        fontSize: printFontSize,
-                        fontWeight: 'bold',
-                        color: '#0f172a',
-                        lineHeight: 1.15,
-                        width: '100%',
-                      }}
-                    >
-                      {item.noArsip}
-                    </div>
-
-                    {/* Baris 2: Keterangan di bawahnya (Font agak besar, wrap jika panjang) */}
-                    <div
-                      style={{
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
-                        fontSize: '10.5pt',
-                        fontWeight: '500',
-                        color: '#334155',
-                        marginTop: '1.5mm',
-                        lineHeight: 1.25,
-                        width: '100%',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'normal',
-                      }}
-                    >
-                      {line2}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
       </div>
     </div>
   );

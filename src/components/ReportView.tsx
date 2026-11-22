@@ -167,8 +167,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
       );
     });
 
-    return { enop, esppt, merk, k3, tanah, imb, slo, timbangan };
+    const users = (state.users || []).filter((u) => {
+      if (!q) return true;
+      return (
+        u.username.toLowerCase().includes(q) ||
+        u.namaLengkap.toLowerCase().includes(q) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        u.role.toLowerCase().includes(q) ||
+        u.level.toLowerCase().includes(q)
+      );
+    });
+
+    return { enop, esppt, merk, k3, tanah, imb, slo, timbangan, users };
   }, [state, locationFilter, searchQuery]);
+
+  const activeUser =
+    state.users.find((u) => u.id === state.currentUserId) || state.users[0];
 
   const handleExportExcel = () => {
     if (!canExportReport) return;
@@ -195,14 +209,25 @@ export const ReportView: React.FC<ReportViewProps> = ({
       {/* Header & Export Actions */}
       <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-center">
         <div>
-          <div className="text-xs font-semibold text-blue-700">
-            {state.companyProfile?.namaPerusahaan || 'Perusahaan'}
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-blue-700">
+            <span>{state.companyProfile?.namaPerusahaan || 'Perusahaan'}</span>
+            {activeUser && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span className="text-slate-600 font-medium">
+                  Dicetak oleh:{' '}
+                  <strong className="text-slate-900">
+                    {activeUser.namaLengkap} (@{activeUser.username})
+                  </strong>
+                </span>
+              </>
+            )}
           </div>
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900">
             Laporan &amp; Ekspor Arsip Dokumen
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Pilih kategori dokumen, saring lokasi arsip fisik, tinjau pratinjau rekapitulasi, dan unduh dalam format Excel (.xlsx) atau PDF (.pdf).
+            Pilih kategori dokumen atau daftar pengguna, saring lokasi arsip fisik, tinjau pratinjau rekapitulasi, dan unduh dalam format Excel (.xlsx) atau PDF (.pdf).
           </p>
         </div>
 
@@ -282,6 +307,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   { id: 'K3', label: 'Sertifikat K3' },
                   { id: 'SLO', label: 'Sertifikat SLO' },
                   { id: 'TIMBANGAN', label: 'Uji Timbangan' },
+                  { id: 'USERS', label: 'Daftar Pengguna' },
                 ] as { id: ReportDocType; label: string }[]
               ).map((tab) => (
                 <button
@@ -358,6 +384,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
             <span className="text-amber-800 font-semibold">SLO: {filteredData.slo.length}</span>
             <span aria-hidden="true">·</span>
             <span className="text-teal-800 font-semibold">Timbangan: {filteredData.timbangan.length}</span>
+            <span aria-hidden="true">·</span>
+            <span className="text-blue-800 font-semibold">Pengguna: {filteredData.users.length}</span>
           </div>
           <div className="flex items-center gap-1.5 text-emerald-700">
             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -928,6 +956,71 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {/* Preview Daftar Pengguna (Users & Roles) */}
+        {(selectedDocType === 'ALL' || selectedDocType === 'USERS') && (
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="border-b border-slate-200 pb-3 text-sm font-bold text-slate-900">
+              9. Daftar Pengguna Sistem / Users &amp; Roles ({filteredData.users.length} Akun)
+            </h2>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500">
+                    <th className="py-2 pr-3 font-semibold">No</th>
+                    <th className="px-3 py-2 font-semibold">Username</th>
+                    <th className="px-3 py-2 font-semibold">Nama Lengkap</th>
+                    <th className="px-3 py-2 font-semibold">Email</th>
+                    <th className="px-3 py-2 font-semibold">Role / Jabatan</th>
+                    <th className="px-3 py-2 font-semibold">Level Otorisasi</th>
+                    <th className="px-3 py-2 font-semibold">Status</th>
+                    <th className="py-2 pl-3 font-semibold">Login Terakhir</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredData.users.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-slate-500">
+                        Tidak ada pengguna terdaftar yang sesuai filter.
+                      </td>
+                    </tr>
+                  )}
+                  {filteredData.users.map((u, idx) => (
+                    <tr key={u.id}>
+                      <td className="py-2.5 pr-3 font-mono text-slate-500">{idx + 1}</td>
+                      <td className="px-3 py-2.5 font-mono font-semibold text-blue-800 whitespace-nowrap">
+                        @{u.username}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-slate-900">
+                        {u.namaLengkap}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-slate-600">
+                        {u.email || '-'}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-800">{u.role}</td>
+                      <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">
+                        {u.level}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span
+                          className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${
+                            u.aktif
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {u.aktif ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pl-3 text-slate-500 whitespace-nowrap">
+                        {u.lastLogin || '-'}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

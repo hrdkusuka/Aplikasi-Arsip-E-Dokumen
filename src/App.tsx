@@ -63,6 +63,7 @@ const STORAGE_KEY = 'arsip_dokumen_enterprise_v1';
 const LEGACY_DEMO_CLEANED_KEY = 'arsip_legacy_demo_cleaned_v1';
 const SESSION_AUTH_KEY = 'arsip_auth_session_active_v1';
 const SESSION_VIEW_KEY = 'arsip_active_view_v1';
+const SESSION_USER_ID_KEY = 'arsip_session_user_id_v1';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -86,7 +87,13 @@ export default function App() {
               existingUsers.push(INITIAL_APP_STATE.users[0]);
             }
             parsed.users = existingUsers;
-            if (!existingUsers.some((u) => u.id === parsed.currentUserId)) {
+            const savedSessionUserId = localStorage.getItem(SESSION_USER_ID_KEY);
+            if (
+              savedSessionUserId &&
+              existingUsers.some((u) => u.id === savedSessionUserId)
+            ) {
+              parsed.currentUserId = savedSessionUserId;
+            } else if (!existingUsers.some((u) => u.id === parsed.currentUserId)) {
               parsed.currentUserId = existingUsers[0]?.id || 'usr-admin';
             }
           }
@@ -347,13 +354,27 @@ export default function App() {
       .then((res) => {
         if (cancelled || !res.success || !res.hasData || !res.state) return;
         skipNextGasSyncRef.current = true;
-        setState(res.state);
+        // Pertahankan sesi user yang sedang login di browser ini jika akunnya masih ada di Google Sheets
+        let mergedState: AppState = res.state;
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(res.state));
-          if (res.state.companyProfile?.namaPerusahaan) {
+          const savedSessionUserId = localStorage.getItem(SESSION_USER_ID_KEY);
+          if (
+            savedSessionUserId &&
+            Array.isArray(res.state.users) &&
+            res.state.users.some((u) => u.id === savedSessionUserId)
+          ) {
+            mergedState = { ...res.state, currentUserId: savedSessionUserId };
+          }
+        } catch {
+          // ignore
+        }
+        setState(mergedState);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedState));
+          if (mergedState.companyProfile?.namaPerusahaan) {
             localStorage.setItem(
               'company_profile_backup_v1',
-              JSON.stringify(res.state.companyProfile)
+              JSON.stringify(mergedState.companyProfile)
             );
           }
         } catch {
@@ -728,126 +749,25 @@ export default function App() {
     showToast('Dokumen Uji Timbangan telah dihapus.');
   };
 
-  // --- Setting / User & Role Handlers ---
-  const handleSaveUser = (user: UserAccount, isEdit: boolean) => {
-    setState((prev) => ({
-      ...prev,
-      users: isEdit
-        ? prev.users.map((u) => (u.id === user.id ? user : u))
-        : [...prev.users, user],
-    }));
-    showToast(
-      isEdit
-        ? `Akun pengguna "${user.username}" berhasil diperbarui.`
-        : `Akun pengguna "${user.username}" berhasil ditambahkan.`
-    );
-  };
-
-  const handleDeleteUser = (id: string) => {
-    setState((prev) => {
-      const remainingUsers = prev.users.filter((u) => u.id !== id);
-      return {
-        ...prev,
-        users: remainingUsers,
-        currentUserId:
-          prev.currentUserId === id
-            ? remainingUsers[0]?.id || 'usr-admin'
-            : prev.currentUserId,
-      };
-    });
-    showToast('Akun pengguna berhasil dihapus secara permanen.');
-  };
-
-  const handleClearSampleUsers = () => {
-    setState((prev) => {
-      const sampleUsernames = [
-        'admin.pusat',
-        'siti.legal',
-        'budi.pajak',
-        'hendra.k3',
-        'auditor.internal',
-      ];
-      const sampleIds = ['usr-1', 'usr-2', 'usr-3', 'usr-4', 'usr-5'];
-      const filtered = prev.users.filter(
-        (u) =>
-          u.username === 'admin' ||
-          u.id === 'usr-admin' ||
-          u.email === 'hrd.kusuka@gmail.com' ||
-          (!sampleUsernames.includes(u.username) && !sampleIds.includes(u.id))
-      );
-      return {
-        ...prev,
-        users: filtered,
-        currentUserId: filtered[0]?.id || 'usr-admin',
-      };
-    });
-    showToast(
-      'Seluruh akun pengguna contoh telah berhasil dihapus. Hanya akun Super Admin utama dan akun riil Anda yang tersimpan.'
-    );
-  };
-
-  const handleResetNonSuperAdminPasswords = () => {
-    let resetCount = 0;
-    setState((prev) => {
-      const updatedUsers = prev.users.map((u) => {
-        if (u.level !== 'Level 1 - Super Admin') {
-          resetCount++;
-          return { ...u, password: 'password123' };
-        }
-        return u;
-      });
-      return {
-        ...prev,
-        users: updatedUsers,
-      };
-    });
-    showToast(`Password ${resetCount} akun Non-Super Admin telah direset menjadi "password123". Akun Super Admin tetap aman.`);
-  };
-
-  const handleResetSingleUserPassword = (userId: string) => {
-    const target = state.users.find((u) => u.id === userId);
-    if (!target) return;
-    if (target.level === 'Level 1 - Super Admin') {
-      showToast('Akun Super Admin tidak dapat direset dengan tombol ini demi keamanan.');
-      return;
-    }
-    setState((prev) => ({
-      ...prev,
-      users: prev.users.map((u) =>
-        u.id === userId ? { ...u, password: 'password123' } : u
-      ),
-    }));
-    showToast(`Password untuk @${target.username} berhasil direset menjadi "password123".`);
-  };
-
-  const handleSaveRole = (role: RoleDefinition, isEdit: boolean) => {
-    setState((prev) => ({
-      ...prev,
-      roles: isEdit
-        ? prev.roles.map((r) => (r.id === role.id ? role : r))
-        : [...prev.roles, role],
-    }));
-    showToast(`Konfigurasi Role "${role.roleName}" diperbarui.`);
-  };
-
-  const handleDeleteRole = (id: string) => {
-    setState((prev) => ({
-      ...prev,
-      roles: prev.roles.filter((r) => r.id !== id),
-    }));
-    showToast('Role berhasil dihapus dari daftar Setting.');
-  };
-
-  const handleSaveCompanyProfile = async (profile: CompanyProfile) => {
-    const nextState: AppState = {
-      ...state,
-      companyProfile: profile,
-    };
+  // Helper penyimpanan instan ke localStorage + sinkronisasi langsung ke Google Sheets
+  const persistAndSyncState = async (
+    nextState: AppState,
+    localMessage: string,
+    syncedMessage?: string
+  ) => {
     skipNextGasSyncRef.current = true;
     setState(nextState);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-      localStorage.setItem('company_profile_backup_v1', JSON.stringify(profile));
+      if (nextState.companyProfile?.namaPerusahaan) {
+        localStorage.setItem(
+          'company_profile_backup_v1',
+          JSON.stringify(nextState.companyProfile)
+        );
+      }
+      if (nextState.currentUserId) {
+        localStorage.setItem(SESSION_USER_ID_KEY, nextState.currentUserId);
+      }
     } catch {
       // ignore
     }
@@ -863,56 +783,222 @@ export default function App() {
           ...(res.spreadsheetName ? { spreadsheetName: res.spreadsheetName } : {}),
         });
         setGasConfig(updated);
-        showToast(
-          `Profil Company "${profile.namaPerusahaan}" berhasil disimpan ke seluruh aplikasi & Google Sheets.`
-        );
+        showToast(syncedMessage || `${localMessage} & tersinkron ke Google Sheets.`);
         return;
       }
       setGasSyncStatus('error');
       showToast(
-        `Profil Company "${profile.namaPerusahaan}" diperbarui di aplikasi, namun gagal tersinkron ke Google Sheets (${res.error || 'cek koneksi Apps Script'}).`
+        `${localMessage} di browser ini, namun gagal tersinkron ke Google Sheets (${res.error || 'cek koneksi Apps Script'}).`
       );
       return;
     }
 
-    showToast(
-      `Profil Company "${profile.namaPerusahaan}" berhasil disimpan dan diperbarui di seluruh menu, E-Book, Portal Awal & Laporan.`
+    showToast(localMessage);
+  };
+
+  // --- Setting / User & Role Handlers ---
+  const handleSaveUser = async (user: UserAccount, isEdit: boolean) => {
+    const cleanUsernameLower = user.username.trim().toLowerCase();
+    const duplicate = state.users.find(
+      (u) => u.username.trim().toLowerCase() === cleanUsernameLower && u.id !== user.id
+    );
+    if (duplicate) {
+      showToast(
+        `Username "${user.username}" sudah digunakan oleh akun lain (${duplicate.namaLengkap}). Gunakan username yang berbeda.`
+      );
+      return;
+    }
+
+    const nextUsers = isEdit
+      ? state.users.map((u) => (u.id === user.id ? user : u))
+      : [...state.users, user];
+
+    const nextState: AppState = {
+      ...state,
+      users: nextUsers,
+    };
+
+    const msg = isEdit
+      ? `Akun pengguna "${user.namaLengkap}" (@${user.username}) berhasil diperbarui`
+      : `Akun pengguna baru "${user.namaLengkap}" (@${user.username}) berhasil disimpan`;
+
+    await persistAndSyncState(nextState, `${msg}.`, `${msg} & tersimpan ke Google Sheets.`);
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    const remainingUsers = state.users.filter((u) => u.id !== id);
+    const safeUsers = remainingUsers.length > 0 ? remainingUsers : INITIAL_APP_STATE.users;
+    const nextState: AppState = {
+      ...state,
+      users: safeUsers,
+      currentUserId:
+        state.currentUserId === id
+          ? safeUsers[0]?.id || 'usr-admin'
+          : state.currentUserId,
+    };
+    await persistAndSyncState(
+      nextState,
+      'Akun pengguna berhasil dihapus secara permanen.',
+      'Akun pengguna berhasil dihapus & diperbarui di Google Sheets.'
+    );
+  };
+
+  const handleClearSampleUsers = async () => {
+    const sampleUsernames = [
+      'admin.pusat',
+      'siti.legal',
+      'budi.pajak',
+      'hendra.k3',
+      'auditor.internal',
+    ];
+    const sampleIds = ['usr-1', 'usr-2', 'usr-3', 'usr-4', 'usr-5'];
+    const filtered = state.users.filter(
+      (u) =>
+        u.username === 'admin' ||
+        u.id === 'usr-admin' ||
+        u.email === 'hrd.kusuka@gmail.com' ||
+        (!sampleUsernames.includes(u.username) && !sampleIds.includes(u.id))
+    );
+    const safeUsers = filtered.length > 0 ? filtered : INITIAL_APP_STATE.users;
+    const nextState: AppState = {
+      ...state,
+      users: safeUsers,
+      currentUserId: safeUsers.some((u) => u.id === state.currentUserId)
+        ? state.currentUserId
+        : safeUsers[0]?.id || 'usr-admin',
+    };
+    await persistAndSyncState(
+      nextState,
+      'Seluruh akun pengguna contoh telah berhasil dihapus. Hanya akun Super Admin utama dan akun riil Anda yang tersimpan.',
+      'Akun pengguna contoh berhasil dihapus & diperbarui di Google Sheets.'
+    );
+  };
+
+  const handleResetNonSuperAdminPasswords = async () => {
+    let resetCount = 0;
+    const updatedUsers = state.users.map((u) => {
+      if (u.level !== 'Level 1 - Super Admin') {
+        resetCount++;
+        return { ...u, password: 'password123' };
+      }
+      return u;
+    });
+    const nextState: AppState = {
+      ...state,
+      users: updatedUsers,
+    };
+    await persistAndSyncState(
+      nextState,
+      `Password ${resetCount} akun Non-Super Admin telah direset menjadi "password123". Akun Super Admin tetap aman.`,
+      `Password ${resetCount} akun Non-Super Admin berhasil direset & tersinkron ke Google Sheets.`
+    );
+  };
+
+  const handleResetSingleUserPassword = async (userId: string) => {
+    const target = state.users.find((u) => u.id === userId);
+    if (!target) return;
+    if (target.level === 'Level 1 - Super Admin') {
+      showToast('Akun Super Admin tidak dapat direset dengan tombol ini demi keamanan.');
+      return;
+    }
+    const nextState: AppState = {
+      ...state,
+      users: state.users.map((u) =>
+        u.id === userId ? { ...u, password: 'password123' } : u
+      ),
+    };
+    await persistAndSyncState(
+      nextState,
+      `Password untuk @${target.username} berhasil direset menjadi "password123".`,
+      `Password @${target.username} berhasil direset & tersinkron ke Google Sheets.`
+    );
+  };
+
+  const handleSaveRole = async (role: RoleDefinition, isEdit: boolean) => {
+    const nextState: AppState = {
+      ...state,
+      roles: isEdit
+        ? state.roles.map((r) => (r.id === role.id ? role : r))
+        : [...state.roles, role],
+    };
+    await persistAndSyncState(
+      nextState,
+      `Konfigurasi Role "${role.roleName}" berhasil disimpan.`,
+      `Konfigurasi Role "${role.roleName}" berhasil disimpan & tersinkron ke Google Sheets.`
+    );
+  };
+
+  const handleDeleteRole = async (id: string) => {
+    const nextState: AppState = {
+      ...state,
+      roles: state.roles.filter((r) => r.id !== id),
+    };
+    await persistAndSyncState(
+      nextState,
+      'Role berhasil dihapus dari daftar Setting.',
+      'Role berhasil dihapus & diperbarui di Google Sheets.'
+    );
+  };
+
+  const handleSaveCompanyProfile = async (profile: CompanyProfile) => {
+    const nextState: AppState = {
+      ...state,
+      companyProfile: profile,
+    };
+    await persistAndSyncState(
+      nextState,
+      `Profil Company "${profile.namaPerusahaan}" berhasil disimpan dan diperbarui di seluruh menu, E-Book, Portal Awal & Laporan.`,
+      `Profil Company "${profile.namaPerusahaan}" berhasil disimpan ke seluruh aplikasi & Google Sheets.`
     );
   };
 
   const handleSwitchUser = (userId: string) => {
     const target = state.users.find((u) => u.id === userId);
     if (!target) return;
-    setState((prev) => ({
-      ...prev,
+    const nextState: AppState = {
+      ...state,
       currentUserId: userId,
-    }));
+    };
+    setState(nextState);
+    try {
+      localStorage.setItem(SESSION_USER_ID_KEY, userId);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+    } catch {
+      // ignore
+    }
     showToast(
       `Sesi beralih ke ${target.namaLengkap} (${target.role} · ${target.level}).`
     );
   };
 
-  const handleResetUserPassword = (userId: string, newPassword: string) => {
-    setState((prev) => ({
-      ...prev,
-      users: prev.users.map((u) =>
+  const handleResetUserPassword = async (userId: string, newPassword: string) => {
+    const nextState: AppState = {
+      ...state,
+      users: state.users.map((u) =>
         u.id === userId ? { ...u, password: newPassword } : u
       ),
-    }));
-    showToast('Password akun berhasil diatur ulang.');
+    };
+    await persistAndSyncState(
+      nextState,
+      'Password akun berhasil diatur ulang.',
+      'Password akun berhasil diatur ulang & tersimpan ke Google Sheets.'
+    );
   };
 
   const handleLandingLoginSuccess = (matchedUser: UserAccount) => {
-    setState((prev) => ({
-      ...prev,
+    const nextState: AppState = {
+      ...state,
       currentUserId: matchedUser.id,
-      users: prev.users.map((u) =>
+      users: state.users.map((u) =>
         u.id === matchedUser.id ? { ...u, lastLogin: 'Baru saja' } : u
       ),
-    }));
+    };
+    setState(nextState);
     setIsAuthenticated(true);
     try {
       localStorage.setItem(SESSION_AUTH_KEY, 'true');
+      localStorage.setItem(SESSION_USER_ID_KEY, matchedUser.id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
       const savedView = localStorage.getItem(SESSION_VIEW_KEY);
       const validViews: ActiveView[] = [
         'dashboard',
@@ -1004,10 +1090,17 @@ export default function App() {
       );
       return;
     }
-    setState((prev) => ({
-      ...prev,
+    const nextState: AppState = {
+      ...state,
       currentUserId: matched.id,
-    }));
+    };
+    setState(nextState);
+    try {
+      localStorage.setItem(SESSION_USER_ID_KEY, matched.id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+    } catch {
+      // ignore
+    }
     setIsLoginModalOpen(false);
     setLoginUsername('');
     setLoginPassword('');
@@ -1092,13 +1185,26 @@ export default function App() {
 
   const handleHydrateStateFromSheet = (nextState: AppState) => {
     skipNextGasSyncRef.current = true;
-    setState(nextState);
+    let mergedState: AppState = nextState;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-      if (nextState.companyProfile?.namaPerusahaan) {
+      const savedSessionUserId = localStorage.getItem(SESSION_USER_ID_KEY);
+      if (
+        savedSessionUserId &&
+        Array.isArray(nextState.users) &&
+        nextState.users.some((u) => u.id === savedSessionUserId)
+      ) {
+        mergedState = { ...nextState, currentUserId: savedSessionUserId };
+      }
+    } catch {
+      // ignore
+    }
+    setState(mergedState);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedState));
+      if (mergedState.companyProfile?.namaPerusahaan) {
         localStorage.setItem(
           'company_profile_backup_v1',
-          JSON.stringify(nextState.companyProfile)
+          JSON.stringify(mergedState.companyProfile)
         );
       }
     } catch {
@@ -1828,7 +1934,7 @@ export default function App() {
 
         {/* Toast Notification Banner */}
         {toastMessage && (
-          <div className="fixed right-6 bottom-6 z-50 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-medium text-white shadow-lg">
+          <div className="fixed right-6 bottom-6 z-[70] flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-medium text-white shadow-lg">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>
